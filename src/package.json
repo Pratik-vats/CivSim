@@ -1,0 +1,12 @@
+{
+  "name": "civsim-root",
+  "version": "1.0.0",
+  "description": "CivSim Human Life & Civilization Simulator",
+  "scripts": {
+    "start": "java -cp \"bin;lib/*\" civsim.web.CivSimWebApplication",
+    "dev": "npm --prefix web run dev",
+    "build:web": "npm --prefix web run build",
+    "test": "java -cp \"bin;lib/*\" civsim.test.TestStage32InteractiveMap"
+  }
+}
+
