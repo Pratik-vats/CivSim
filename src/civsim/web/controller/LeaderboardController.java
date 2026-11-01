@@ -22,7 +22,7 @@ public class LeaderboardController {
     }
 
     @GetMapping
-    public ResponseEntity<LeaderboardDto> getLeaderboard(@RequestParam(defaultValue = "POWER") String category) {
+    public ResponseEntity<LeaderboardDto> getLeaderboard(@RequestParam(name = "category", defaultValue = "POWER") String category) {
         try {
             LeaderboardDto dto = runner.submitQuery(engine ->
                     SnapshotBuilder.buildLeaderboard(engine, category)

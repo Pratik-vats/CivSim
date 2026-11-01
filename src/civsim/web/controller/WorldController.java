@@ -49,8 +49,8 @@ public class WorldController {
     @GetMapping("/search")
     @SuppressWarnings("unchecked")
     public ResponseEntity<List<SearchResultDto>> search(
-            @RequestParam(required = false, defaultValue = "") String q,
-            @RequestParam(required = false, defaultValue = "15") int limit) {
+            @RequestParam(name = "q", required = false, defaultValue = "") String q,
+            @RequestParam(name = "limit", required = false, defaultValue = "15") int limit) {
         try {
             List<SearchResultDto> results = (List<SearchResultDto>) runner.submitQuery(engine ->
                     SnapshotBuilder.searchEntities(engine, q, limit)
@@ -70,7 +70,7 @@ public class WorldController {
     }
 
     @PostMapping("/load/{saveId}")
-    public ResponseEntity<CommandStatusDto> loadWorld(@PathVariable String saveId) {
+    public ResponseEntity<CommandStatusDto> loadWorld(@PathVariable("saveId") String saveId) {
         SimulationCommand cmd = new SimulationCommand(CommandType.LOAD_WORLD, saveId);
         runner.submitCommand(cmd);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(cmd.toDto());

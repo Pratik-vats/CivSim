@@ -30,11 +30,11 @@ public class EventController {
 
     @GetMapping
     public ResponseEntity<PagedResponse<EventDto>> listEvents(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) Integer yearMin,
-            @RequestParam(required = false) Integer yearMax,
-            @RequestParam(required = false) String type) {
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "20") int size,
+            @RequestParam(name = "yearMin", required = false) Integer yearMin,
+            @RequestParam(name = "yearMax", required = false) Integer yearMax,
+            @RequestParam(name = "type", required = false) String type) {
 
         try {
             List<EventDto> events = runner.submitQuery(engine -> {

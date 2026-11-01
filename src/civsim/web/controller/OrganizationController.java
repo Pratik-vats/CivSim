@@ -28,8 +28,8 @@ public class OrganizationController {
 
     @GetMapping
     public ResponseEntity<PagedResponse<OrganizationSummaryDto>> listOrganizations(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "20") int size) {
         try {
             List<OrganizationSummaryDto> list = runner.submitQuery(engine -> {
                 List<OrganizationSummaryDto> dtos = new ArrayList<>();
@@ -46,7 +46,7 @@ public class OrganizationController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<OrganizationDetailDto> getOrganizationDetail(@PathVariable String id) {
+    public ResponseEntity<OrganizationDetailDto> getOrganizationDetail(@PathVariable("id") String id) {
         try {
             OrganizationDetailDto detail = runner.submitQuery(engine -> {
                 Organization target = engine.getOrganizationSystem().getOrganization(id);

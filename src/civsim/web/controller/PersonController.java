@@ -29,13 +29,13 @@ public class PersonController {
 
     @GetMapping
     public ResponseEntity<PagedResponse<PersonSummaryDto>> listPeople(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) Integer settlementId,
-            @RequestParam(required = false) Boolean alive,
-            @RequestParam(required = false) Boolean awakened,
-            @RequestParam(required = false) String supernaturalClass,
-            @RequestParam(required = false) Integer tier) {
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "20") int size,
+            @RequestParam(name = "settlementId", required = false) Integer settlementId,
+            @RequestParam(name = "alive", required = false) Boolean alive,
+            @RequestParam(name = "awakened", required = false) Boolean awakened,
+            @RequestParam(name = "supernaturalClass", required = false) String supernaturalClass,
+            @RequestParam(name = "tier", required = false) Integer tier) {
 
         try {
             List<PersonSummaryDto> results = runner.submitQuery(engine -> {
@@ -59,7 +59,7 @@ public class PersonController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PersonDetailDto> getPersonDetail(@PathVariable int id) {
+    public ResponseEntity<PersonDetailDto> getPersonDetail(@PathVariable("id") int id) {
         try {
             PersonDetailDto detail = runner.submitQuery(engine -> {
                 Person target = null;

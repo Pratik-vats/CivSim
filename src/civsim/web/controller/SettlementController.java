@@ -28,8 +28,8 @@ public class SettlementController {
 
     @GetMapping
     public ResponseEntity<PagedResponse<SettlementMarkerDto>> listSettlements(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "20") int size) {
 
         var snap = runner.getLatestSnapshot();
         if (snap == null) return ResponseEntity.ok(PagedResponse.of(List.of(), page, size));
@@ -38,7 +38,7 @@ public class SettlementController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<SettlementDetailDto> getSettlementDetail(@PathVariable int id) {
+    public ResponseEntity<SettlementDetailDto> getSettlementDetail(@PathVariable("id") int id) {
         try {
             SettlementDetailDto detail = runner.submitQuery(engine -> {
                 Village target = null;

@@ -28,8 +28,8 @@ public class BattleController {
 
     @GetMapping
     public ResponseEntity<PagedResponse<BattleSummaryDto>> listBattles(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "20") int size) {
 
         List<BattleResult> cached = CombatEngine.getAllCachedBattles();
         List<BattleSummaryDto> dtos = new ArrayList<>();
@@ -53,7 +53,7 @@ public class BattleController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<BattleDetailDto> getBattleDetail(@PathVariable String id) {
+    public ResponseEntity<BattleDetailDto> getBattleDetail(@PathVariable("id") String id) {
         BattleResult r = CombatEngine.getCachedBattle(id);
         if (r == null) {
             return ResponseEntity.notFound().build();

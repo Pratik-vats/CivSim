@@ -78,7 +78,7 @@ export const App: React.FC = () => {
         </div>
         <h2 className="text-lg font-bold">Simulation Backend Unavailable</h2>
         <p className="text-xs text-slate-400 max-w-md mt-1 mb-4">
-          Could not communicate with the MIE backend service. Ensure the Java simulation server is running on port 8080.
+          Could not communicate with the MIE backend service. Ensure the Java simulation server is running on port 8081.
         </p>
         <button
           onClick={() => {
