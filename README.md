@@ -21,7 +21,7 @@
   - [Prerequisites](#prerequisites)
   - [Option 1: Quick Launch (All-in-One Application)](#option-1-quick-launch-all-in-one-application)
   - [Option 2: Frontend Development Mode (Hot Reloading)](#option-2-frontend-development-mode-hot-reloading)
-- [Interactive Map & Controls](#interactive-map-controls)
+- [Interactive Map & Controls](#interactive-map--controls)
 - [API & Integration Overview](#api--integration-overview)
 - [Project Structure](#project-structure)
 - [License](#license)
@@ -121,12 +121,12 @@ The compiled frontend is bundled with the backend application. A single command 
 # From the project root
 npm start
 ```
-*Or navigate to `src/` and run `run.bat` or `./run.ps1`.*
+*Alternatively, double-click `run.bat` or execute `./run.ps1` in the project root.*
 
 #### Manual Launch:
 ```powershell
-cd src
-java -cp "bin;lib/*" civsim.web.CivSimWebApplication
+cd backend
+java -cp "bin;resources;lib/*" civsim.web.CivSimWebApplication
 ```
 
 Once started, open your web browser at:
@@ -136,24 +136,23 @@ Once started, open your web browser at:
 
 ### Option 2: Frontend Development Mode (Hot Reloading)
 
-To modify and live-edit the React/TypeScript frontend:
+To modify and live-edit the React/TypeScript frontend with instant hot-reloading:
 
 #### 1. Start the Backend:
 ```powershell
-cd src
-java -cp "bin;lib/*" civsim.web.CivSimWebApplication
+npm run start
 ```
+*(Or in `backend`: `java -cp "bin;resources;lib/*" civsim.web.CivSimWebApplication`)*
 
 #### 2. Start the Frontend Dev Server:
 ```powershell
-cd src/web
-npm install
 npm run dev
 ```
+*(Or in `frontend`: `npm run dev`)*
 
 Open your browser at:
 👉 **`http://localhost:5173`**  
-*(Vite proxies API calls and live event streams to backend port `8085`).*
+*(Vite automatically proxies API calls and live event streams to backend port `8085`).*
 
 ---
 
@@ -207,29 +206,33 @@ The backend exposes a standardized REST API along with real-time SSE event strea
 ```text
 CivSim/
 ├── README.md                    # Project documentation
-├── package.json                 # Top-level workspace script runner
-├── src/
-│   ├── civsim/                  # Authoritative Java Simulation Engine
-│   │   ├── SimulationEngine.java# Central world state & monthly execution pipeline
-│   │   ├── dto/                 # Data transfer objects & immutable snapshot records
-│   │   ├── model/               # Core domain entities (Person, Village, Monster, Anomaly)
-│   │   ├── persistence/         # Checkpoint serialization & atomic file operations
-│   │   ├── runner/              # Single-writer execution coordinator & snapshot manager
-│   │   ├── systems/             # Subsystems (Demographics, Warfare, Ecology, Cultivation)
-│   │   └── web/                 # Spring Boot controllers and SSE event dispatcher
-│   ├── web/                     # React + TypeScript Frontend
-│   │   ├── src/
-│   │   │   ├── components/      # Strategy map, HUD, inspection drawer, navigation
-│   │   │   ├── hooks/           # Real-time SSE hooks and window sizing
-│   │   │   ├── services/        # REST API client
-│   │   │   ├── store/           # Zustand state management
-│   │   │   └── types/           # Strongly-typed TypeScript API definitions
-│   │   ├── package.json         # Frontend package dependencies & scripts
-│   │   └── vite.config.ts       # Vite build & development proxy configuration
-│   ├── lib/                     # Spring Boot, Tomcat, and Jackson runtime dependencies
-│   ├── bin/                     # Compiled JVM classes & packaged web distribution
-│   ├── run.bat                  # Windows launch script
-│   └── run.ps1                  # PowerShell launch script
+├── package.json                 # Root workspace script runner (npm start, npm run dev, npm test)
+├── run.bat                      # 1-click Windows root launcher
+├── run.ps1                      # 1-click PowerShell root launcher
+│
+├── backend/                     # Authoritative Java Simulation Engine & Spring Boot Web Service
+│   ├── src/                     # Java source code
+│   │   └── civsim/              # SimulationEngine, subsystems, models, DTOs, controllers
+│   ├── resources/               # Configuration and web distribution assets
+│   │   ├── application.properties
+│   │   └── static/              # Production web bundle served by backend
+│   ├── lib/                     # Spring Boot, Tomcat, and Jackson JAR dependencies
+│   ├── bin/                     # Compiled JVM bytecode classes
+│   ├── run.bat                  # Backend launch script
+│   ├── run.ps1                  # PowerShell backend launch script
+│   └── package.json             # Backend build & test scripts
+│
+├── frontend/                    # Modern React 18 + TypeScript Strategy Game Interface
+│   ├── src/                     # React components, living world map, HUD, store, and API client
+│   ├── public/                  # Static web assets & Map 1 SVG atlas
+│   ├── dist/                    # Production build distribution
+│   ├── package.json             # Frontend dependencies & npm scripts
+│   ├── vite.config.ts           # Vite proxy & build configuration
+│   ├── tailwind.config.js       # Strategy game aesthetic themes
+│   └── tsconfig.json            # Strict TypeScript configuration
+│
+├── saves/                       # Checkpoint saves and alternate timeline branches
+└── scratch/                     # Ad-hoc development scripts & experimental prototypes
 ```
 
 ---

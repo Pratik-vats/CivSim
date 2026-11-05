@@ -9,8 +9,8 @@ Write-Host ""
 
 $javaExe = "C:\Program Files\Java\jdk-25.0.4.1\bin\java.exe"
 if (Test-Path $javaExe) {
-    & $javaExe -cp "bin;lib/*" civsim.web.CivSimWebApplication
+    & $javaExe -cp "bin;resources;lib/*" civsim.web.CivSimWebApplication
 } else {
-    java -cp "bin;lib/*" civsim.web.CivSimWebApplication
+    java -cp "bin;resources;lib/*" civsim.web.CivSimWebApplication
 }
 

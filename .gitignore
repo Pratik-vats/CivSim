@@ -26,10 +26,11 @@ hs_err_pid*
 replay_pid*
 *.hprof
 
-### Dependencies (Preserve committed JARs in lib/) ###
-# Note: Spring Boot and runtime jars in src/lib/ must NOT be ignored
-!/lib/
+### Dependencies (Preserve committed JARs in backend/lib/) ###
+# Note: Spring Boot and runtime jars in backend/lib/ must NOT be ignored
+!/backend/lib/
 !/src/lib/
+!/lib/
 !*.jar
 
 ### Node & Frontend ###
@@ -48,10 +49,14 @@ pnpm-debug.log*
 
 ### CivSim Saves & Scratch Workspaces ###
 /saves/
+/backend/saves/
 /src/saves/
 /saves_*/
+/backend/saves_*/
 /src/saves_*/
 **/saves/
+!frontend/src/components/saves/
+!frontend/src/components/saves/**
 !src/web/src/components/saves/
 !src/web/src/components/saves/**
 /scratch/
@@ -65,7 +70,8 @@ scratch/
 ### Ad-hoc Scripts, Generators & Screenshots ###
 gen_map.py
 **/gen_map.py
-mie_expanded_world_map.svg
+/mie_expanded_world_map.svg
+!frontend/public/mie_expanded_world_map.svg
 cdp_screenshot.js
 test_and_screenshot.*
 screenshot*.png
@@ -80,6 +86,7 @@ HANDOFF_VALIDATION_REPORT.md
 PROJECT_HANDOFF.md
 RC_BLOCKER_VERIFICATION.md
 RELEASE_CANDIDATE_REPORT.md
+MAP_FOUNDATION_ALIGNMENT_AUDIT.md
 *_AUDIT.md
 *_audit.md
 *_REPORT.md
@@ -101,6 +108,7 @@ RELEASE_CANDIDATE_REPORT.md
 
 ### Test Suites, Test Classes & Test Scripts ###
 # Java test suites and runner classes
+backend/src/civsim/test/
 src/civsim/test/
 **/civsim/test/
 Test*.java
@@ -109,6 +117,7 @@ Test*.java
 *TestCase.java
 
 # Frontend and ad-hoc test scripts / runners
+frontend/src/test/
 src/web/src/test/
 **/src/test/
 **/test-results/
