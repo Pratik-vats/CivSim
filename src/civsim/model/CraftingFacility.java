@@ -32,6 +32,7 @@ public class CraftingFacility {
     public FacilityGrade getGrade() { return grade; }
     public int getConcurrentCapacity() { return concurrentCapacity; }
     public int getActiveJobsCount() { return activeJobsCount; }
+    public void setActiveJobsCount(int count) { this.activeJobsCount = Math.max(0, count); }
 
     public void setOwnerOrganizationId(String ownerOrganizationId) {
         this.ownerOrganizationId = ownerOrganizationId;

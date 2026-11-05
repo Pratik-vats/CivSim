@@ -16,6 +16,7 @@ import civsim.model.Village;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -33,6 +34,7 @@ public class DemographicsSystem {
     private OrganizationSystem organizationSystem;
     private CombatLootListener combatLootListener;
     private final List<HistoricalDeathRecord> historicalDeathRecords = new ArrayList<>();
+    private final Map<Integer, Person> deceasedPersonArchive = new LinkedHashMap<>();
 
     public interface CombatLootListener {
         double onCombatFatalityLoot(Person victim, double eligibleNetCarriedWealth, String cause, int currentYear);
@@ -74,6 +76,14 @@ public class DemographicsSystem {
 
     public List<HistoricalDeathRecord> getHistoricalDeathRecords() {
         return Collections.unmodifiableList(historicalDeathRecords);
+    }
+
+    public Person getDeceasedPerson(int id) {
+        return deceasedPersonArchive.get(id);
+    }
+
+    public List<Person> getAllDeceasedPeople() {
+        return new ArrayList<>(deceasedPersonArchive.values());
     }
 
     public static boolean isNaturalDeath(String cause) {
@@ -144,7 +154,12 @@ public class DemographicsSystem {
             }
         }
 
-        // Heap Memory cleanup: prune deceased citizens and inactive couples from active collections
+        // Heap Memory cleanup: archive and prune deceased citizens and inactive couples from active collections
+        for (Person p : allPeople) {
+            if (!p.isAlive()) {
+                deceasedPersonArchive.put(p.getId(), p);
+            }
+        }
         allPeople.removeIf(p -> !p.isAlive());
         allCouples.removeIf(c -> !c.isActive() || !c.getHusband().isAlive() || !c.getWife().isAlive());
         for (Village v : villages) {
@@ -183,6 +198,7 @@ public class DemographicsSystem {
 
         boolean diedNow = person.markDeceased(currentYear, cause);
         if (diedNow) {
+            deceasedPersonArchive.put(person.getId(), person);
             if (person.getVillage() != null) {
                 person.getVillage().recordDeathThisYear();
             }

@@ -1,0 +1,12 @@
+{
+  "name": "civsim",
+  "version": "1.0.0",
+  "description": "CivSim Human Life & Civilization Simulator",
+  "scripts": {
+    "start": "npm --prefix src start",
+    "dev": "npm --prefix src/web run dev",
+    "build": "npm --prefix src/web run build",
+    "test": "npm --prefix src test"
+  }
+}
+

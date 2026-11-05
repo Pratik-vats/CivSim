@@ -419,6 +419,12 @@ public class Person {
         mainHandTwoHanded = false;
     }
 
+    public void setEquippedItemDirect(EquipmentSlot slot, String equipmentId) {
+        if (slot != null && equipmentId != null) {
+            equippedItemIds.put(slot, equipmentId);
+        }
+    }
+
     public CrafterProfile getCrafterProfile() {
         return crafterProfile;
     }

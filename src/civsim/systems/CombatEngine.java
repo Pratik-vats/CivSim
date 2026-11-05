@@ -2,6 +2,7 @@ package civsim.systems;
 
 import civsim.ProgressionConfig;
 import civsim.SimulationConfig;
+import civsim.dto.BattleRoundRecordDto;
 import civsim.model.AetherAspect;
 import civsim.model.AttributeType;
 import civsim.model.BattleOutcome;
@@ -56,7 +57,22 @@ public class CombatEngine {
                 }
             }
     );
-    private static final Map<String, List<Combatant>> battleParticipants = new ConcurrentHashMap<>();
+    private static final Map<String, List<Combatant>> battleParticipants = Collections.synchronizedMap(
+            new LinkedHashMap<String, List<Combatant>>(128, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, List<Combatant>> eldest) {
+                    return size() > 100;
+                }
+            }
+    );
+    private static final Map<String, List<BattleRoundRecordDto>> battleRoundLogs = Collections.synchronizedMap(
+            new LinkedHashMap<String, List<BattleRoundRecordDto>>(128, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, List<BattleRoundRecordDto>> eldest) {
+                    return size() > 100;
+                }
+            }
+    );
 
     private final int configuredMaxRounds;
 
@@ -98,6 +114,12 @@ public class CombatEngine {
     public static void clearCache() {
         battleCache.clear();
         battleParticipants.clear();
+        battleRoundLogs.clear();
+    }
+
+    public static List<BattleRoundRecordDto> getCachedBattleRounds(String battleId) {
+        if (battleId == null) return null;
+        return battleRoundLogs.get(battleId);
     }
 
     public static int getBattleCacheSize() {
@@ -117,6 +139,10 @@ public class CombatEngine {
         resetYearlyCounters();
         cumulativeBattles = 0;
         cumulativeFatalities = 0;
+    }
+
+    public static void cacheBattleResultForTesting(String battleId, BattleResult result) {
+        battleCache.put(battleId, result);
     }
 
     public static void resetYearlyCounters() {
@@ -162,10 +188,15 @@ public class CombatEngine {
 
     public static void commitCombatCasualties(BattleResult result, int currentYear, DemographicsSystem demographicsSystem, SimulationConfig config) {
         if (result == null || demographicsSystem == null) return;
-        List<Combatant> participants = battleParticipants.remove(result.getBattleId());
+        List<Combatant> participants = battleParticipants.get(result.getBattleId());
         if (participants != null) {
             commitCombatCasualties(result, participants, currentYear, demographicsSystem, config);
         }
+    }
+
+    public static List<Combatant> getBattleParticipants(String battleId) {
+        if (battleId == null) return null;
+        return battleParticipants.get(battleId);
     }
 
     // --- Static Public Overloads ---
@@ -291,6 +322,8 @@ public class CombatEngine {
         boolean groupWithdrawalOccurred = false;
 
         long currentTotalMonths = (long) request.getSimulationYear() * 12 + request.getSimulationMonth();
+        List<BattleRoundRecordDto> roundLogs = new ArrayList<>();
+        int actionSeq = 1;
 
         // 3. Turn-Based Battle Loop
         for (int round = 1; round <= maxRounds; round++) {
@@ -310,10 +343,11 @@ public class CombatEngine {
                     groupWithdrawalOccurred = true;
                     for (Combatant c : validCombatants) {
                         if (c.getSideId().equals(side) && c.canActInCombat()) {
+                            CombatInjury inj = null;
                             // Interception check: 30% chance intercepted
                             if (rng.nextDouble() < 0.30) {
                                 c.getCombatState().takeDamage(8.0);
-                                CombatInjury inj = new CombatInjury(
+                                inj = new CombatInjury(
                                         "INJ_WITHDRAW_" + request.getBattleId() + "_" + c.getCombatantId(),
                                         CombatInjurySeverity.MINOR_INJURY,
                                         request.getSimulationYear(),
@@ -326,6 +360,23 @@ public class CombatEngine {
                             }
                             c.getCombatState().setEscaped(true);
                             escaped.add(c.getCombatantId());
+                            roundLogs.add(new BattleRoundRecordDto(
+                                    round,
+                                    actionSeq++,
+                                    c.getCombatantId(),
+                                    c.getName(),
+                                    null,
+                                    null,
+                                    "GROUP_WITHDRAWAL",
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    (inj != null ? "MINOR_INJURY" : null),
+                                    false,
+                                    true,
+                                    c.getName() + " withdrew from the battle with their unit."
+                            ));
                         }
                     }
                 }
@@ -393,9 +444,43 @@ public class CombatEngine {
                         );
                         actorState.addInjury(escInj);
                         injuriesInflictedCount++;
+                        roundLogs.add(new BattleRoundRecordDto(
+                                round,
+                                actionSeq++,
+                                actor.getCombatantId(),
+                                actor.getName(),
+                                null,
+                                null,
+                                "ESCAPE_SUCCESS",
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                "MODERATE_INJURY",
+                                false,
+                                true,
+                                actor.getName() + " successfully disengaged and fled the battlefield."
+                        ));
                         continue;
                     } else {
                         // Personal escape failed: loses action for this turn
+                        roundLogs.add(new BattleRoundRecordDto(
+                                round,
+                                actionSeq++,
+                                actor.getCombatantId(),
+                                actor.getName(),
+                                null,
+                                null,
+                                "ESCAPE_FAILED",
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                null,
+                                false,
+                                false,
+                                actor.getName() + " attempted to retreat but failed to disengage."
+                        ));
                         continue;
                     }
                 }
@@ -421,6 +506,23 @@ public class CombatEngine {
 
                         injuredAlly.getCombatState().heal(actualHeal);
                         actionExecuted = true;
+                        roundLogs.add(new BattleRoundRecordDto(
+                                round,
+                                actionSeq++,
+                                actor.getCombatantId(),
+                                actor.getName(),
+                                injuredAlly.getCombatantId(),
+                                injuredAlly.getName(),
+                                "VITALIST_HEAL",
+                                0.0,
+                                Math.round(actualHeal * 10.0) / 10.0,
+                                2.0,
+                                7.0,
+                                null,
+                                false,
+                                false,
+                                actor.getName() + " restored " + String.format("%.1f", actualHeal) + " health to " + injuredAlly.getName() + "."
+                        ));
                     }
                 }
 
@@ -440,6 +542,23 @@ public class CombatEngine {
                         barrierTarget.getCombatState().addEffect(new TemporaryCombatEffect(
                                 TemporaryCombatEffect.EffectType.WARDEN_BARRIER, 2, barrierCap));
                         actionExecuted = true;
+                        roundLogs.add(new BattleRoundRecordDto(
+                                round,
+                                actionSeq++,
+                                actor.getCombatantId(),
+                                actor.getName(),
+                                barrierTarget.getCombatantId(),
+                                barrierTarget.getName(),
+                                "WARDEN_BARRIER",
+                                0.0,
+                                0.0,
+                                3.0,
+                                7.0,
+                                null,
+                                false,
+                                false,
+                                actor.getName() + " projected a protective barrier over " + barrierTarget.getName() + "."
+                        ));
                     }
                 }
 
@@ -447,8 +566,31 @@ public class CombatEngine {
                 if (!actionExecuted && actor.isAwakened() && canExecutePrimaryAbility(actor)) {
                     Combatant target = selectDeterministicTarget(livingEnemies, actor);
                     if (target != null) {
+                        double beforeHp = target.getCombatState().getCurrentHealth();
+                        int beforeInj = target.getCombatState().getActiveInjuries().size();
                         resolvePrimaryAbility(actor, target, rng, request, currentTotalMonths, damageDealtPerSide,
                                 fatalities, incapacitated, validCombatants);
+                        double afterHp = target.getCombatState().getCurrentHealth();
+                        double dealt = Math.max(0.0, beforeHp - afterHp);
+                        boolean defeated = !target.isAlive() || target.getCombatState().isIncapacitated();
+                        String inj = (target.getCombatState().getActiveInjuries().size() > beforeInj) ? "INJURY" : null;
+                        roundLogs.add(new BattleRoundRecordDto(
+                                round,
+                                actionSeq++,
+                                actor.getCombatantId(),
+                                actor.getName(),
+                                target.getCombatantId(),
+                                target.getName(),
+                                "ABILITY_" + actor.getSupernaturalClass().name(),
+                                Math.round(dealt * 10.0) / 10.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                inj,
+                                defeated,
+                                false,
+                                actor.getName() + " unleashed " + actor.getSupernaturalClass().getDisplayName() + " ability on " + target.getName() + " for " + String.format("%.1f", dealt) + " damage."
+                        ));
                         actionExecuted = true;
                     }
                 }
@@ -458,8 +600,31 @@ public class CombatEngine {
                     Combatant target = selectDeterministicTarget(livingEnemies, actor);
                     if (target != null) {
                         actorState.consumeStamina(3.0);
+                        double beforeHp = target.getCombatState().getCurrentHealth();
+                        int beforeInj = target.getCombatState().getActiveInjuries().size();
                         resolvePhysicalAttack(actor, target, 1.0, 0.0, 0.0, 0.0, rng, request, currentTotalMonths,
                                 damageDealtPerSide, fatalities, incapacitated, validCombatants);
+                        double afterHp = target.getCombatState().getCurrentHealth();
+                        double dealt = Math.max(0.0, beforeHp - afterHp);
+                        boolean defeated = !target.isAlive() || target.getCombatState().isIncapacitated();
+                        String inj = (target.getCombatState().getActiveInjuries().size() > beforeInj) ? "INJURY" : null;
+                        roundLogs.add(new BattleRoundRecordDto(
+                                round,
+                                actionSeq++,
+                                actor.getCombatantId(),
+                                actor.getName(),
+                                target.getCombatantId(),
+                                target.getName(),
+                                "PHYSICAL_ATTACK",
+                                Math.round(dealt * 10.0) / 10.0,
+                                0.0,
+                                3.0,
+                                0.0,
+                                inj,
+                                defeated,
+                                false,
+                                actor.getName() + " struck " + target.getName() + " for " + String.format("%.1f", dealt) + " damage."
+                        ));
                         actionExecuted = true;
                     }
                 }
@@ -469,6 +634,23 @@ public class CombatEngine {
                     actorState.restoreStamina(4.0);
                     actorState.addEffect(new TemporaryCombatEffect(
                             TemporaryCombatEffect.EffectType.DEFENSIVE_STANCE, 1, 0.20));
+                    roundLogs.add(new BattleRoundRecordDto(
+                            round,
+                            actionSeq++,
+                            actor.getCombatantId(),
+                            actor.getName(),
+                            null,
+                            null,
+                            "DEFEND",
+                            0.0,
+                            0.0,
+                            -4.0,
+                            0.0,
+                            null,
+                            false,
+                            false,
+                            actor.getName() + " took a defensive stance and recovered stamina."
+                    ));
                 }
             }
 
@@ -630,6 +812,7 @@ public class CombatEngine {
 
         battleCache.put(request.getBattleId(), result);
         battleParticipants.put(request.getBattleId(), new ArrayList<>(validCombatants));
+        battleRoundLogs.put(request.getBattleId(), Collections.unmodifiableList(roundLogs));
 
         // Update Telemetry
         annualBattles++;

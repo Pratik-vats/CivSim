@@ -128,6 +128,9 @@ public class FeudCase {
     public void setNextEvaluationTotalMonths(int months) { this.nextEvaluationTotalMonths = months; }
     public void setActiveOperationId(String opId) { this.activeOperationId = opId; }
     public void setActiveAgreementId(String agrId) { this.activeAgreementId = agrId; }
+    public void setCurrentEscalationLevel(FeudEscalationLevel level) { if (level != null) this.currentEscalationLevel = level; }
+    public void setCurrentSeverity(double s) { this.currentSeverity = Math.max(0.0, Math.min(100.0, s)); }
+    public void setCurrentFeudStatus(FeudStatus st) { if (st != null) this.currentFeudStatus = st; }
 
     public void addResponsiblePerson(String personId) {
         if (personId != null) responsiblePersonIds.add(personId);

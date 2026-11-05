@@ -1,42 +1,178 @@
-### IntelliJ IDEA ###
-.idea/
-*.iml
-out/
-!**/src/main/**/out/
-!**/src/test/**/out/
-.kotlin
+# ==============================================================================
+# CivSim - .gitignore
+# ==============================================================================
 
-### Build & Binaries ###
+### Build & Compiler Outputs ###
 bin/
 **/bin/
 build/
 **/build/
 dist/
 **/dist/
+target/
+**/target/
+out/
+**/out/
+!**/src/main/**/out/
+*.class
+
+# Compile source listings and temporary compiler files
+compile_sources.txt
+**/compile_sources.txt
+*.sources.txt
+
+### Java Crash Dumps & Profiling ###
+hs_err_pid*
+replay_pid*
+*.hprof
+
+### Dependencies (Preserve committed JARs in lib/) ###
+# Note: Spring Boot and runtime jars in src/lib/ must NOT be ignored
+!/lib/
+!/src/lib/
+!*.jar
 
 ### Node & Frontend ###
 node_modules/
 **/node_modules/
 .npm/
+.vite/
+**/.vite/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+.eslintcache
+.parcel-cache
+.turbo/
 
-### CivSim Saves & Scratch ###
-saves/
-saves_*/
+### CivSim Saves & Scratch Workspaces ###
+/saves/
+/src/saves/
+/saves_*/
+/src/saves_*/
+**/saves/
+!src/web/src/components/saves/
+!src/web/src/components/saves/**
+/scratch/
+**/scratch/
+scratch/
+*.save
+*.chk
 *.tmp
+*.temp
 
-### Eclipse & IDEs ###
+### Ad-hoc Scripts, Generators & Screenshots ###
+gen_map.py
+**/gen_map.py
+mie_expanded_world_map.svg
+cdp_screenshot.js
+test_and_screenshot.*
+screenshot*.png
+*.screenshot.png
+*.png.tmp
+*.svg.tmp
+
+### Non-Project Documentation, Audits & Handoffs ###
+# Ignore internal audit reports, handoff documents, and verification notes
+FINAL_INTEGRATION_AUDIT.md
+HANDOFF_VALIDATION_REPORT.md
+PROJECT_HANDOFF.md
+RC_BLOCKER_VERIFICATION.md
+RELEASE_CANDIDATE_REPORT.md
+*_AUDIT.md
+*_audit.md
+*_REPORT.md
+*_report.md
+*_HANDOFF.md
+*_handoff.md
+*_VERIFICATION.md
+*_verification.md
+*_CHECKLIST.md
+*_checklist.md
+
+# Ignore all loose markdown documents across workspace except project READMEs
+*.md
+**/*.md
+!README.md
+!**/README.md
+!readme.md
+!**/readme.md
+
+### Test Suites, Test Classes & Test Scripts ###
+# Java test suites and runner classes
+src/civsim/test/
+**/civsim/test/
+Test*.java
+*Test.java
+*Tests.java
+*TestCase.java
+
+# Frontend and ad-hoc test scripts / runners
+src/web/src/test/
+**/src/test/
+**/test-results/
+**/test-reports/
+*.test.ts
+*.test.tsx
+*.test.js
+*.test.cjs
+*.test.mjs
+*.spec.ts
+*.spec.tsx
+*.spec.js
+*.spec.cjs
+*.spec.mjs
+frontend-verification.cjs
+test_*.ps1
+test_*.bat
+test_*.sh
+test_*.py
+
+### Logs & Diagnostics ###
+*.log
+logs/
+**/logs/
+
+### Environment Variables & Secrets ###
+.env
+.env.local
+.env.*.local
+*.local
+
+### JetBrains / IntelliJ IDEA ###
+.idea/
+*.iml
+*.iws
+*.ipr
+.kotlin
+
+### Eclipse & Spring Tool Suite ###
 .apt_generated
+.apt_generated_test
 .classpath
 .factorypath
 .project
-.settings
+.settings/
 .springBeans
-.sts4-cache
+.sts4-cache/
+
+### Visual Studio Code ###
 .vscode/
 
-### OS Generated ###
+### NetBeans ###
+**/nbproject/private/
+**/nbbuild/
+**/nbdist/
+
+### OS Generated Files ###
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*~

@@ -788,7 +788,22 @@ public class SimulationEngine {
         for (Person p : allPeople) {
             if (p.getId() == id) return p;
         }
+        if (demographicsSystem != null) {
+            return demographicsSystem.getDeceasedPerson(id);
+        }
         return null;
+    }
+
+    public synchronized List<Person> getAllPeopleIncludingDeceased() {
+        List<Person> list = new ArrayList<>(allPeople);
+        if (demographicsSystem != null) {
+            for (Person dp : demographicsSystem.getAllDeceasedPeople()) {
+                if (!list.contains(dp)) {
+                    list.add(dp);
+                }
+            }
+        }
+        return Collections.unmodifiableList(list);
     }
 
     public synchronized void simulateMonth() {
@@ -834,11 +849,17 @@ public class SimulationEngine {
         return sum;
     }
 
+    public synchronized int getCrossVillageMarriagesThisYear() { return crossVillageMarriagesThisYear; }
+    public synchronized void setCrossVillageMarriagesThisYear(int count) { this.crossVillageMarriagesThisYear = count; }
+    public synchronized int getSettlementUpgradesThisYear() { return settlementUpgradesThisYear; }
+    public synchronized void setSettlementUpgradesThisYear(int count) { this.settlementUpgradesThisYear = count; }
+
     public synchronized List<Village> getVillages() { return Collections.unmodifiableList(new ArrayList<>(villages)); }
     public synchronized List<Person> getAllPeople() { return Collections.unmodifiableList(new ArrayList<>(allPeople)); }
     public synchronized List<Family> getAllFamilies() { return Collections.unmodifiableList(new ArrayList<>(allFamilies)); }
     public synchronized List<Couple> getAllCouples() { return Collections.unmodifiableList(new ArrayList<>(allCouples)); }
     public synchronized List<AnnualReport> getAnnualReports() { return Collections.unmodifiableList(new ArrayList<>(annualReports)); }
+    public synchronized void addAnnualReport(AnnualReport report) { if (report != null) this.annualReports.add(report); }
     public synchronized List<String> getEventHistory() { return Collections.unmodifiableList(new ArrayList<>(eventHistory)); }
     public Timeline getTimeline() { return timeline; }
     public SimulationConfig getConfig() { return config; }

@@ -40,6 +40,8 @@ public class Bank {
     }
 
     public double getTotalDeposits() { return totalDeposits; }
+    public void setTotalDeposits(double totalDeposits) { this.totalDeposits = Math.max(0.0, totalDeposits); }
     public double getTotalLoansOutstanding() { return totalLoansOutstanding; }
+    public void setTotalLoansOutstanding(double totalLoansOutstanding) { this.totalLoansOutstanding = Math.max(0.0, totalLoansOutstanding); }
     public double getInterestRate() { return interestRate; }
 }

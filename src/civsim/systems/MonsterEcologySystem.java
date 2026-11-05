@@ -1380,6 +1380,11 @@ public class MonsterEcologySystem {
     // Getters for Registries
     public synchronized int getTotalLivingMonsterCount() { return getGlobalLivingMonsterCount(); }
     public synchronized Collection<MonsterLair> getAllLairs() { return Collections.unmodifiableCollection(lairs.values()); }
+    public synchronized void addLair(MonsterLair lair) {
+        if (lair != null && lair.getLairId() != null) {
+            lairs.put(lair.getLairId(), lair);
+        }
+    }
     public synchronized List<MonsterLair> getActiveLairs() {
         List<MonsterLair> active = new ArrayList<>();
         for (MonsterLair lair : lairs.values()) {
@@ -1402,4 +1407,8 @@ public class MonsterEcologySystem {
 
     public synchronized long getNextScheduledMonsterTideMonth() { return nextScheduledMonsterTideMonth; }
     public synchronized void setNextScheduledMonsterTideMonth(long month) { this.nextScheduledMonsterTideMonth = month; }
+
+    public synchronized void registerTideForTesting(MonsterTide tide) {
+        if (tide != null) tides.put(tide.getTideId(), tide);
+    }
 }

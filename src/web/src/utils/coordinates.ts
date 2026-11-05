@@ -62,9 +62,16 @@ export function worldToScreen(
   baseScale: number,
   bounds: WorldBounds = DEFAULT_WORLD_BOUNDS
 ): { sx: number; sy: number } {
-  const effectiveScale = baseScale * camera.zoom;
-  const sx = camera.panX + (wx - bounds.minX) * effectiveScale;
-  const sy = camera.panY + (wy - bounds.minY) * effectiveScale;
+  const safeX = Number.isFinite(wx) ? wx : bounds.minX;
+  const safeY = Number.isFinite(wy) ? wy : bounds.minY;
+  const safeScale = Number.isFinite(baseScale) ? baseScale : 1;
+  const safeZoom = Number.isFinite(camera?.zoom) ? camera.zoom : 1;
+  const safePanX = Number.isFinite(camera?.panX) ? camera.panX : 0;
+  const safePanY = Number.isFinite(camera?.panY) ? camera.panY : 0;
+
+  const effectiveScale = safeScale * safeZoom;
+  const sx = safePanX + (safeX - bounds.minX) * effectiveScale;
+  const sy = safePanY + (safeY - bounds.minY) * effectiveScale;
   return { sx, sy };
 }
 
@@ -78,10 +85,17 @@ export function screenToWorld(
   baseScale: number,
   bounds: WorldBounds = DEFAULT_WORLD_BOUNDS
 ): { wx: number; wy: number } {
-  const effectiveScale = baseScale * camera.zoom;
-  if (effectiveScale <= 0) return { wx: 0, wy: 0 };
-  const wx = bounds.minX + (sx - camera.panX) / effectiveScale;
-  const wy = bounds.minY + (sy - camera.panY) / effectiveScale;
+  const safeScale = Number.isFinite(baseScale) ? baseScale : 1;
+  const safeZoom = Number.isFinite(camera?.zoom) ? camera.zoom : 1;
+  const safePanX = Number.isFinite(camera?.panX) ? camera.panX : 0;
+  const safePanY = Number.isFinite(camera?.panY) ? camera.panY : 0;
+
+  const effectiveScale = safeScale * safeZoom;
+  if (effectiveScale <= 0) return { wx: bounds.minX, wy: bounds.minY };
+  const safeSx = Number.isFinite(sx) ? sx : safePanX;
+  const safeSy = Number.isFinite(sy) ? sy : safePanY;
+  const wx = bounds.minX + (safeSx - safePanX) / effectiveScale;
+  const wy = bounds.minY + (safeSy - safePanY) / effectiveScale;
   return { wx, wy };
 }
 

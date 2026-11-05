@@ -1,8 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchWorldSummary, fetchWorldMap, fetchSimulationStatus } from './services/api';
+import {
+  fetchWorldSummary,
+  fetchWorldMap,
+  fetchSimulationStatus,
+  fetchHistoricalMap,
+  fetchHistoricalSummary,
+  fetchWorldOverlays,
+  fetchHistoricalOverlays,
+} from './services/api';
 import { useSimulationSSE } from './hooks/useSimulationSSE';
-import { useMapStore } from './store/useMapStore';
+import { useMapStore, NavigationModule } from './store/useMapStore';
 import { TopBar } from './components/header/TopBar';
 import { Sidebar } from './components/sidebar/Sidebar';
 import { WorldMapWorkspace } from './components/map/WorldMapWorkspace';
@@ -11,10 +19,67 @@ import { LayerControl } from './components/map/LayerControl';
 import { FilterPanel } from './components/map/FilterPanel';
 import { MapLegend } from './components/map/MapLegend';
 import { InspectionDrawer } from './components/drawer/InspectionDrawer';
+
+// Phase 3.3 Explorer Modules & Modals
+import { PeopleExplorer } from './components/people/PeopleExplorer';
+import { PersonProfileModal } from './components/people/PersonProfileModal';
+import { FamilyDynastyExplorer } from './components/families/FamilyDynastyExplorer';
+import { FamilyTreeModal } from './components/families/FamilyTreeModal';
+import { OrganizationExplorer } from './components/organizations/OrganizationExplorer';
+import { ClanDetailModal } from './components/organizations/ClanDetailModal';
+import { HeirloomExplorer } from './components/heirlooms/HeirloomExplorer';
+import { HeirloomDetailModal } from './components/heirlooms/HeirloomDetailModal';
+import { LeaderboardView } from './components/leaderboards/LeaderboardView';
+import { EquipmentDetailModal } from './components/equipment/EquipmentDetailModal';
+import { ComparisonModal } from './components/comparison/ComparisonModal';
+
+// Phase 3.4 Modules & Modals
+import { WorldActivityFeed } from './components/activity/WorldActivityFeed';
+import { EventDetailModal } from './components/activity/EventDetailModal';
+import { HistoricalChronicleView } from './components/chronicle/HistoricalChronicleView';
+import { BattleExplorer } from './components/battles/BattleExplorer';
+import { BattleDetailModal } from './components/battles/BattleDetailModal';
+import { MonsterTideTracker } from './components/tides/MonsterTideTracker';
+import { MonsterTideDetailModal } from './components/tides/MonsterTideDetailModal';
+import { ExpeditionExplorer } from './components/expeditions/ExpeditionExplorer';
+import { ExpeditionDetailModal } from './components/expeditions/ExpeditionDetailModal';
+import { AnomalyActivityView } from './components/anomalies/AnomalyActivityView';
+import { AnomalyDetailModal } from './components/anomalies/AnomalyDetailModal';
+import { BloodFeudLedger } from './components/feuds/BloodFeudLedger';
+import { FeudDetailModal } from './components/feuds/FeudDetailModal';
+
+// Phase 3.5 Time Travel, Persistence & Branching Components
+import { HistoricalTimelineScrubber } from './components/timetravel/HistoricalTimelineScrubber';
+import { HistoricalComparisonModal } from './components/timetravel/HistoricalComparisonModal';
+import { SaveManagerModal } from './components/saves/SaveManagerModal';
+import { BranchManagerModal } from './components/branches/BranchManagerModal';
+import { NewWorldModal } from './components/worlds/NewWorldModal';
+
 import { AlertCircle, RefreshCw } from 'lucide-react';
 
 export const App: React.FC = () => {
-  const [currentModule, setCurrentModule] = useState('world-map');
+  const activeModule = useMapStore((s) => s.activeModule);
+  const setActiveModule = useMapStore((s) => s.setActiveModule);
+
+  const [currentModule, setCurrentModule] = useState<string>('world-map');
+
+  // Synchronize store and local state
+  useEffect(() => {
+    if (activeModule === 'map' && currentModule !== 'world-map') {
+      setCurrentModule('world-map');
+    } else if (activeModule !== 'map' && currentModule !== activeModule) {
+      setCurrentModule(activeModule);
+    }
+  }, [activeModule]);
+
+  const handleSelectModule = (mod: string) => {
+    setCurrentModule(mod);
+    if (mod === 'world-map') {
+      setActiveModule('map');
+    } else {
+      setActiveModule(mod as NavigationModule);
+    }
+  };
 
   // SSE Live Notification Feed
   const sseState = useSimulationSSE();
@@ -48,6 +113,85 @@ export const App: React.FC = () => {
     refetchInterval: 1500,
   });
 
+  // Phase 3.5 Historical Queries & Adapters
+  const timeTravelMode = useMapStore((s) => s.timeTravelMode);
+  const historicalYear = useMapStore((s) => s.historicalYear);
+  const historicalMonth = useMapStore((s) => s.historicalMonth);
+  const isHistorical = timeTravelMode === 'HISTORICAL';
+
+  const { data: historicalMapData } = useQuery({
+    queryKey: ['historical-map', historicalYear, historicalMonth],
+    queryFn: () => fetchHistoricalMap(historicalYear!, historicalMonth ?? 0),
+    enabled: isHistorical && historicalYear !== null,
+  });
+
+  const { data: historicalSummaryData } = useQuery({
+    queryKey: ['historical-summary', historicalYear, historicalMonth],
+    queryFn: () => fetchHistoricalSummary(historicalYear!, historicalMonth ?? 0),
+    enabled: isHistorical && historicalYear !== null,
+  });
+
+  // Phase 3.6 World Overlays & Dynamic Heatmaps
+  const { data: liveOverlays } = useQuery({
+    queryKey: ['world-overlays'],
+    queryFn: fetchWorldOverlays,
+    refetchInterval: 2500,
+    enabled: !isHistorical,
+  });
+
+  const { data: historicalOverlays } = useQuery({
+    queryKey: ['historical-overlays', historicalYear, historicalMonth],
+    queryFn: () => fetchHistoricalOverlays(historicalYear!, historicalMonth ?? 0),
+    enabled: isHistorical && historicalYear !== null,
+  });
+
+  const activeOverlays = isHistorical ? historicalOverlays : liveOverlays;
+
+  // Adaptive map snapshot for live or historical visualization
+  const activeMapSnapshot =
+    isHistorical && historicalMapData
+      ? {
+          worldId: historicalMapData.worldId,
+          snapshotVersion: -1,
+          tickId: -1,
+          year: historicalMapData.year,
+          month: historicalMapData.month,
+          width: mapSnapshot?.width || 120,
+          height: mapSnapshot?.height || 120,
+          settlements: historicalMapData.settlements,
+          lairs: historicalMapData.lairs,
+          anomalies: historicalMapData.anomalies,
+          expeditions: historicalMapData.expeditions,
+        }
+      : mapSnapshot;
+
+  // Adaptive summary for live or historical status
+  const activeSummary =
+    isHistorical && historicalSummaryData
+      ? {
+          worldId: historicalSummaryData.worldId,
+          year: historicalSummaryData.year,
+          month: historicalSummaryData.month,
+          totalMonths: historicalSummaryData.year * 12 + historicalSummaryData.month,
+          status: 'HISTORICAL_VIEW',
+          humanPopulation: historicalSummaryData.humanPopulation,
+          livingMalePopulation: Math.round(historicalSummaryData.humanPopulation / 2),
+          livingFemalePopulation: Math.round(historicalSummaryData.humanPopulation / 2),
+          settlementCount: historicalSummaryData.settlementCount,
+          activeOrganizationCount: historicalSummaryData.activeOrganizationCount,
+          awakenedPopulation: historicalSummaryData.awakenedPopulation,
+          livingMonsterCount: historicalSummaryData.livingMonsterCount,
+          activeMonsterLairCount: historicalSummaryData.activeMonsterLairCount,
+          totalFoodStockpile: historicalSummaryData.totalFoodStockpile,
+          totalWoodStockpile: historicalSummaryData.totalWoodStockpile,
+          totalOreStockpile: historicalSummaryData.totalOreStockpile,
+          totalToolsStockpile: historicalSummaryData.totalToolsStockpile,
+          totalCitizenWealth: 0,
+          totalCivicTreasury: 0,
+          currentEra: historicalSummaryData.currentEra,
+        }
+      : summary;
+
   const showLayers = useMapStore((s) => s.showLayers);
   const showFilters = useMapStore((s) => s.showFilters);
   const showLegend = useMapStore((s) => s.showLegend);
@@ -55,8 +199,8 @@ export const App: React.FC = () => {
 
   // Era Detection: derived from backend response
   const isAwakened =
-    summary?.currentEra === 'Awakening Era' ||
-    (summary?.year !== undefined && summary.year >= 50);
+    activeSummary?.currentEra === 'Awakening Era' ||
+    (activeSummary?.year !== undefined && activeSummary.year >= 50);
 
   // Loading state
   if ((summaryLoading || mapLoading) && !mapSnapshot) {
@@ -78,7 +222,7 @@ export const App: React.FC = () => {
         </div>
         <h2 className="text-lg font-bold">Simulation Backend Unavailable</h2>
         <p className="text-xs text-slate-400 max-w-md mt-1 mb-4">
-          Could not communicate with the MIE backend service. Ensure the Java simulation server is running on port 8081.
+          Could not communicate with the MIE backend service. Ensure the Java simulation server is running on port 8085.
         </p>
         <button
           onClick={() => {
@@ -102,7 +246,7 @@ export const App: React.FC = () => {
     >
       {/* 1. World Top Status Bar */}
       <TopBar
-        summary={summary}
+        summary={activeSummary}
         status={simStatus}
         sseConnected={sseState.connected}
         isAwakened={isAwakened}
@@ -113,46 +257,96 @@ export const App: React.FC = () => {
         {/* Left Sidebar */}
         <Sidebar
           currentModule={currentModule}
-          onSelectModule={setCurrentModule}
+          onSelectModule={handleSelectModule}
           isAwakened={isAwakened}
         />
 
-        {/* Map Workspace */}
+        {/* Dynamic Center Workspace */}
         <main className="flex-1 relative overflow-hidden flex flex-col">
-          {/* Floating Search Bar (Top Left over map) */}
-          <div className="absolute top-4 left-4 z-10">
-            <SearchBar
-              onCenterEntity={(wx, wy) => {
-                // Handled via centerEntity logic in workspace
-                const workspaceEl = document.querySelector('canvas');
-                if (workspaceEl) {
-                  const boundsW = mapSnapshot?.width || 120;
-                  const boundsH = mapSnapshot?.height || 120;
-                  const baseScale = Math.min((window.innerWidth - 300) / boundsW, (window.innerHeight - 150) / boundsH);
-                  const newPanX = (window.innerWidth - 300) / 2 - wx * baseScale;
-                  const newPanY = (window.innerHeight - 150) / 2 - wy * baseScale;
-                  setCamera({ panX: newPanX, panY: newPanY, zoom: 1.5 });
-                }
-              }}
-            />
-          </div>
+          {currentModule === 'world-map' && (
+            <div className="flex-1 flex flex-col relative overflow-hidden">
+              <div className="flex-1 relative overflow-hidden">
+                {/* Floating Search Bar (Top Left over map) */}
+                <div className="absolute top-4 left-4 z-10">
+                  <SearchBar
+                    onCenterEntity={(wx, wy) => {
+                      const boundsW = activeMapSnapshot?.width || 120;
+                      const boundsH = activeMapSnapshot?.height || 120;
+                      const baseScale = Math.min((window.innerWidth - 300) / boundsW, (window.innerHeight - 150) / boundsH);
+                      const newPanX = (window.innerWidth - 300) / 2 - wx * baseScale;
+                      const newPanY = (window.innerHeight - 150) / 2 - wy * baseScale;
+                      setCamera({ panX: newPanX, panY: newPanY, zoom: 1.5 });
+                    }}
+                  />
+                </div>
 
-          {/* Map Overlay Panels */}
-          {showLayers && <LayerControl />}
-          {showFilters && <FilterPanel />}
-          {showLegend && <MapLegend />}
+                {/* Map Overlay Panels */}
+                {showLayers && <LayerControl />}
+                {showFilters && <FilterPanel />}
+                {showLegend && <MapLegend />}
 
-          {/* Interactive World Map */}
-          {mapSnapshot && (
-            <WorldMapWorkspace mapSnapshot={mapSnapshot} isAwakened={isAwakened} />
+                {/* Interactive World Map */}
+                {activeMapSnapshot && (
+                  <WorldMapWorkspace
+                    mapSnapshot={activeMapSnapshot}
+                    overlays={activeOverlays}
+                    isAwakened={isAwakened}
+                  />
+                )}
+
+                {/* Inspection Drawer */}
+                {activeMapSnapshot && (
+                  <InspectionDrawer mapSnapshot={activeMapSnapshot} isAwakened={isAwakened} />
+                )}
+              </div>
+
+              {/* Bottom Docked Historical Timeline Scrubber */}
+              <HistoricalTimelineScrubber
+                worldId={summary?.worldId}
+                currentLiveYear={summary?.year ?? 0}
+                currentLiveMonth={summary?.month ?? 1}
+              />
+            </div>
           )}
 
-          {/* Inspection Drawer */}
-          {mapSnapshot && (
-            <InspectionDrawer mapSnapshot={mapSnapshot} isAwakened={isAwakened} />
-          )}
+          {currentModule === 'people' && <PeopleExplorer />}
+          {currentModule === 'families' && <FamilyDynastyExplorer />}
+          {currentModule === 'organizations' && <OrganizationExplorer />}
+          {currentModule === 'heirlooms' && <HeirloomExplorer />}
+          {currentModule === 'leaderboards' && <LeaderboardView />}
+
+          {/* Phase 3.4 Modules */}
+          {currentModule === 'activity' && <WorldActivityFeed />}
+          {currentModule === 'chronicle' && <HistoricalChronicleView />}
+          {currentModule === 'battles' && <BattleExplorer />}
+          {currentModule === 'tides' && <MonsterTideTracker />}
+          {currentModule === 'expeditions' && <ExpeditionExplorer />}
+          {currentModule === 'anomalies' && <AnomalyActivityView />}
+          {currentModule === 'feuds' && <BloodFeudLedger />}
         </main>
       </div>
+
+      {/* Global Modals for Detail Inspection */}
+      <PersonProfileModal />
+      <FamilyTreeModal />
+      <ClanDetailModal />
+      <HeirloomDetailModal />
+      <EquipmentDetailModal />
+      <ComparisonModal />
+
+      {/* Phase 3.4 Inspection Modals */}
+      <EventDetailModal />
+      <BattleDetailModal />
+      <MonsterTideDetailModal />
+      <ExpeditionDetailModal />
+      <AnomalyDetailModal />
+      <FeudDetailModal />
+
+      {/* Phase 3.5 Time Travel, Save & Branch Modals */}
+      <HistoricalComparisonModal />
+      <SaveManagerModal />
+      <BranchManagerModal />
+      <NewWorldModal />
     </div>
   );
 };

@@ -971,4 +971,45 @@ public class EquipmentCraftingSystem {
 
     public Map<String, CraftingWorkOrder> getActiveOrders() { return Collections.unmodifiableMap(activeOrders); }
     public List<CraftingWorkOrder> getCompletedOrders() { return Collections.unmodifiableList(completedOrders); }
+
+    public synchronized void restoreEquipment(EquipmentItem item) {
+        if (item != null) allEquipment.put(item.getEquipmentId(), item);
+    }
+
+    public synchronized void restoreActiveOrder(CraftingWorkOrder order) {
+        if (order != null) activeOrders.put(order.getWorkOrderId(), order);
+    }
+
+    public synchronized void restoreCompletedOrder(CraftingWorkOrder order) {
+        if (order != null) completedOrders.add(order);
+    }
+
+    public int getNextEquipmentSeq() { return nextEquipmentSeq; }
+    public void setNextEquipmentSeq(int seq) { this.nextEquipmentSeq = Math.max(1, seq); }
+
+    public int getNextWorkOrderSeq() { return nextWorkOrderSeq; }
+    public void setNextWorkOrderSeq(int seq) { this.nextWorkOrderSeq = Math.max(1, seq); }
+
+    public int getNextEnchantmentSeq() { return nextEnchantmentSeq; }
+    public void setNextEnchantmentSeq(int seq) { this.nextEnchantmentSeq = Math.max(1, seq); }
+
+    public void setOrdersStarted(int v) { this.ordersStarted = v; }
+    public void setOrdersCompletedCount(int v) { this.ordersCompletedCount = v; }
+    public void setOrdersFailedCount(int v) { this.ordersFailedCount = v; }
+    public void setOrdersCancelledCount(int v) { this.ordersCancelledCount = v; }
+    public void setEnchantmentsAppliedCount(int v) { this.enchantmentsAppliedCount = v; }
+    public void setUpgradesCompletedCount(int v) { this.upgradesCompletedCount = v; }
+    public void setRepairsCompletedCount(int v) { this.repairsCompletedCount = v; }
+
+    public void setTotalCoresGenerated(double v) { this.totalCoresGenerated = v; }
+    public void setTotalCoresDelivered(double v) { this.totalCoresDelivered = v; }
+    public void setTotalCoresReserved(double v) { this.totalCoresReserved = v; }
+    public void setTotalCoresConsumed(double v) { this.totalCoresConsumed = v; }
+    public void setTotalCoresLost(double v) { this.totalCoresLost = v; }
+
+    public void setTotalAnomalyGenerated(double v) { this.totalAnomalyGenerated = v; }
+    public void setTotalAnomalyDelivered(double v) { this.totalAnomalyDelivered = v; }
+    public void setTotalAnomalyReserved(double v) { this.totalAnomalyReserved = v; }
+    public void setTotalAnomalyConsumed(double v) { this.totalAnomalyConsumed = v; }
+    public void setTotalAnomalyLost(double v) { this.totalAnomalyLost = v; }
 }

@@ -62,5 +62,20 @@ public class OrganizationController {
             return ResponseEntity.internalServerError().build();
         }
     }
+
+    @GetMapping("/{id}/diplomacy-graph")
+    public ResponseEntity<civsim.dto.GraphDataDto> getDiplomacyGraph(@PathVariable("id") String id) {
+        try {
+            civsim.dto.GraphDataDto graph = runner.submitQuery(engine -> {
+                Organization target = engine.getOrganizationSystem().getOrganization(id);
+                if (target == null) return new civsim.dto.GraphDataDto(List.of(), List.of());
+                return SnapshotBuilder.buildOrganizationDiplomacyGraph(target, engine.getOrganizationSystem());
+            }).get(3, TimeUnit.SECONDS);
+
+            return ResponseEntity.ok(graph);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
 }
 

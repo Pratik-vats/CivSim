@@ -4,11 +4,13 @@ import { useMapStore, DrawerTab } from '../../store/useMapStore';
 import {
   fetchSettlementDetail,
   fetchSettlementEvents,
+  fetchSettlementHistory,
 } from '../../services/api';
 import {
   WorldMapSnapshot,
   SettlementDetailDto,
   EventDto,
+  SettlementHistoryDto,
 } from '../../types/api';
 import {
   X,
@@ -23,7 +25,18 @@ import {
   Compass,
   Hammer,
   Crown,
+  Clock,
+  TrendingUp,
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from 'recharts';
 
 interface InspectionDrawerProps {
   mapSnapshot: WorldMapSnapshot;
@@ -33,17 +46,23 @@ interface InspectionDrawerProps {
 export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({ mapSnapshot, isAwakened }) => {
   const selectedEntity = useMapStore((s) => s.selectedEntity);
   const selectEntity = useMapStore((s) => s.selectEntity);
+  const drawerOpen = useMapStore((s) => s.drawerOpen);
+  const setDrawerOpen = useMapStore((s) => s.setDrawerOpen);
   const activeTab = useMapStore((s) => s.activeDrawerTab);
   const setActiveTab = useMapStore((s) => s.setActiveDrawerTab);
+  const timeTravelMode = useMapStore((s) => s.timeTravelMode);
+  const historicalResolution = useMapStore((s) => s.historicalResolution);
+  const historicalYear = useMapStore((s) => s.historicalYear);
+  const isHistorical = timeTravelMode === 'HISTORICAL';
 
   // Keyboard Escape to close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') selectEntity(null);
+      if (e.key === 'Escape') setDrawerOpen(false);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectEntity]);
+  }, [setDrawerOpen]);
 
   // Query settlement details when selectedEntity.type === 'SETTLEMENT'
   const settlementId = selectedEntity?.type === 'SETTLEMENT' ? Number(selectedEntity.id) : null;
@@ -66,7 +85,15 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({ mapSnapshot,
     staleTime: 10000,
   });
 
-  if (!selectedEntity) return null;
+  // Phase 3.5: Query settlement historical progression time-series
+  const { data: settlementHistory, isLoading: historyLoading } = useQuery({
+    queryKey: ['settlement-history', settlementId],
+    queryFn: () => fetchSettlementHistory(settlementId!),
+    enabled: settlementId !== null && activeTab === 'HISTORY',
+    staleTime: 10000,
+  });
+
+  if (!selectedEntity || !drawerOpen) return null;
 
   // Lair Entity View
   if (selectedEntity.type === 'LAIR') {
@@ -91,7 +118,7 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({ mapSnapshot,
               </div>
             </div>
           </div>
-          <button onClick={() => selectEntity(null)} className="text-slate-400 hover:text-slate-200 p-1">
+          <button onClick={() => setDrawerOpen(false)} className="text-slate-400 hover:text-slate-200 p-1">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -176,7 +203,7 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({ mapSnapshot,
               </div>
             </div>
           </div>
-          <button onClick={() => selectEntity(null)} className="text-slate-400 hover:text-slate-200 p-1">
+          <button onClick={() => setDrawerOpen(false)} className="text-slate-400 hover:text-slate-200 p-1">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -240,7 +267,7 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({ mapSnapshot,
               </div>
             </div>
           </div>
-          <button onClick={() => selectEntity(null)} className="text-slate-400 hover:text-slate-200 p-1">
+          <button onClick={() => setDrawerOpen(false)} className="text-slate-400 hover:text-slate-200 p-1">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -308,10 +335,27 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({ mapSnapshot,
           </div>
         </div>
 
-        <button onClick={() => selectEntity(null)} className="text-slate-400 hover:text-slate-200 p-1">
+        <button onClick={() => setDrawerOpen(false)} className="text-slate-400 hover:text-slate-200 p-1">
           <X className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Historical Mode Read-Only Banner */}
+      {isHistorical && (
+        <div className="mt-3 px-3 py-2 rounded-xl bg-amber-950/70 border border-amber-600/60 text-amber-300 text-xs space-y-1">
+          <div className="flex items-center justify-between font-mono font-bold text-[11px]">
+            <span className="flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-amber-400" /> HISTORICAL ARCHIVE (Y{historicalYear})
+            </span>
+            <span className="px-1.5 py-0.5 rounded bg-amber-900/60 border border-amber-600/50 text-[10px]">
+              {historicalResolution || 'AGGREGATED_HISTORICAL_DATA'}
+            </span>
+          </div>
+          <div className="text-[10px] text-amber-400/80">
+            Immutable presentation snapshot. Live actions and mutating commands are disabled.
+          </div>
+        </div>
+      )}
 
       {/* Famine Warning */}
       {(settlementDetail?.inFamine || sMarker?.inFamine) && (
@@ -615,7 +659,38 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({ mapSnapshot,
 
             {/* 5. HISTORY TAB */}
             {activeTab === 'HISTORY' && (
-              <div className="space-y-2">
+              <div className="space-y-4">
+                {/* Historical Population Progression Chart */}
+                {settlementHistory && settlementHistory.history && settlementHistory.history.length > 0 && (
+                  <div className="bg-slate-900/80 rounded-xl p-3 border border-slate-800 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-300 font-semibold flex items-center gap-1.5">
+                        <TrendingUp className="w-3.5 h-3.5 text-cyan-400" /> Historical Population Trend
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-400">
+                        Founded Y{settlementHistory.foundedYear}
+                      </span>
+                    </div>
+
+                    <div className="h-36 w-full pt-1">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={settlementHistory.history} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                          <XAxis dataKey="year" stroke="#64748b" fontSize={10} tickFormatter={(y) => `Y${y}`} />
+                          <YAxis stroke="#64748b" fontSize={10} />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: '#090d16', borderColor: '#334155', borderRadius: '0.5rem', fontSize: '11px' }}
+                            labelFormatter={(l) => `Year ${l}`}
+                          />
+                          <Line type="monotone" dataKey="population" name="Population" stroke="#38bdf8" strokeWidth={2} dot={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
+                <div className="text-slate-400 font-semibold text-[11px] pt-1">Chronicle Annals & Recorded Events</div>
+
                 {eventsLoading && (
                   <div className="text-slate-400 py-4 text-center font-mono">Loading event chronicles...</div>
                 )}

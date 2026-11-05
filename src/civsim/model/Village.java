@@ -190,6 +190,10 @@ public class Village {
         relations.put(targetVillageId, status);
     }
 
+    public Map<Integer, DiplomaticStatus> getAllRelations() {
+        return Collections.unmodifiableMap(relations);
+    }
+
     public void removeRelationWith(int targetVillageId) {
         relations.remove(targetVillageId);
     }
@@ -566,8 +570,10 @@ public class Village {
     public int getConsecutiveFamineMonths() { return consecutiveFamineMonths; }
     public void setConsecutiveFamineMonths(int months) { this.consecutiveFamineMonths = months; }
     public int getFamineDeathsThisYear() { return famineDeathsThisYear; }
+    public void setFamineDeathsThisYear(int deaths) { this.famineDeathsThisYear = deaths; }
     public void addFamineDeath() { this.famineDeathsThisYear++; }
     public int getFreezingDeathsThisYear() { return freezingDeathsThisYear; }
+    public void setFreezingDeathsThisYear(int deaths) { this.freezingDeathsThisYear = deaths; }
     public void addFreezingDeath() { this.freezingDeathsThisYear++; }
 
     public double computeAttractivenessScore(double foodPerPerson, int capacityPerBuilding) {
@@ -595,11 +601,21 @@ public class Village {
     }
 
     // --- Annual Snapshots ---
+    public int getBirthsThisYear() { return this.birthsThisYear; }
+    public void setBirthsThisYear(int births) { this.birthsThisYear = births; }
     public int getDeathsThisYear() { return this.deathsThisYear; }
+    public void setDeathsThisYear(int deaths) { this.deathsThisYear = deaths; }
     public void recordBirthThisYear() { this.birthsThisYear++; }
     public void recordDeathThisYear() { this.deathsThisYear++; }
+    public int getMarriagesThisYear() { return this.marriagesThisYear; }
+    public void setMarriagesThisYear(int marriages) { this.marriagesThisYear = marriages; }
     public void recordMarriageThisYear() { this.marriagesThisYear++; }
+    public int getInMigrationsThisYear() { return this.inMigrationsThisYear; }
+    public void setInMigrationsThisYear(int migrations) { this.inMigrationsThisYear = migrations; }
+    public int getOutMigrationsThisYear() { return this.outMigrationsThisYear; }
+    public void setOutMigrationsThisYear(int migrations) { this.outMigrationsThisYear = migrations; }
     public void setLastDisasterThisYear(DisasterType disaster) { this.lastDisasterThisYear = disaster; }
+    public String getLastRaidEventSummary() { return this.lastRaidEventSummary; }
     public void setLastRaidEventSummary(String summary) { this.lastRaidEventSummary = summary; }
 
     public VillageAnnualStats snapshotAndResetYearlyCounters(
@@ -706,6 +722,7 @@ public class Village {
     public Bank getBank() { return bank; }
     public Market getMarket() { return market; }
     public int getPeakPopulation() { return peakPopulation; }
+    public void setPeakPopulation(int peak) { this.peakPopulation = peak; }
     public List<Person> getResidents() { return Collections.unmodifiableList(residents); }
     public List<Person> getHistoricalResidents() { return Collections.unmodifiableList(historicalResidents); }
     public List<VillageAnnualStats> getAnnualHistory() { return Collections.unmodifiableList(annualHistory); }

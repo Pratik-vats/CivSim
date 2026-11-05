@@ -78,6 +78,9 @@ public class Couple {
     public int getChildrenBorn() { return childrenBorn; }
     public void setChildrenBorn(int childrenBorn) { this.childrenBorn = childrenBorn; }
     public Long getLastBirthTotalMonths() { return lastBirthTotalMonths; }
+    public void setLastBirthTotalMonths(Long lastBirthTotalMonths) { this.lastBirthTotalMonths = lastBirthTotalMonths; }
     public long getNextScheduledBirthMonth() { return nextScheduledBirthMonth; }
+    public void setNextScheduledBirthMonth(long nextScheduledBirthMonth) { this.nextScheduledBirthMonth = nextScheduledBirthMonth; }
     public boolean isActive() { return active; }
+    public void setActive(boolean active) { this.active = active; }
 }

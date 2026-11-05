@@ -66,10 +66,15 @@ public class CrafterProfile {
     }
 
     public int getTotalOrdersCompleted() { return totalOrdersCompleted; }
+    public void setTotalOrdersCompleted(int v) { this.totalOrdersCompleted = v; }
     public int getTotalCrafts() { return totalCrafts; }
+    public void setTotalCrafts(int v) { this.totalCrafts = v; }
     public int getTotalEnchants() { return totalEnchants; }
+    public void setTotalEnchants(int v) { this.totalEnchants = v; }
     public int getTotalRepairs() { return totalRepairs; }
+    public void setTotalRepairs(int v) { this.totalRepairs = v; }
     public int getTotalUpgrades() { return totalUpgrades; }
+    public void setTotalUpgrades(int v) { this.totalUpgrades = v; }
 
     public double getAverageProficiency() {
         double sum = 0.0;

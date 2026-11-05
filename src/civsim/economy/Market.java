@@ -23,8 +23,11 @@ public class Market {
     }
 
     public double getFoodPrice() { return foodPrice; }
+    public void setFoodPrice(double foodPrice) { this.foodPrice = Math.max(0.1, foodPrice); }
     public double getAnnualTradeVolume() { return annualTradeVolume; }
+    public void setAnnualTradeVolume(double annualTradeVolume) { this.annualTradeVolume = Math.max(0.0, annualTradeVolume); }
     public double getTotalTradeVolume() { return totalTradeVolume; }
+    public void setTotalTradeVolume(double totalTradeVolume) { this.totalTradeVolume = Math.max(0.0, totalTradeVolume); }
 
     public void addTradeVolume(double volume) {
         if (volume > 0) {

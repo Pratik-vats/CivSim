@@ -1040,4 +1040,16 @@ public class BloodFeudSystem {
     public int getCumulativeHeirloomsRecovered() { return cumulativeHeirloomsRecovered; }
     public int getCumulativeFeudBattles() { return cumulativeFeudBattles; }
     public int getCumulativeFeudCasualties() { return cumulativeFeudCasualties; }
+
+    public synchronized void registerGrievance(HistoricalGrievanceRecord grievance) {
+        if (grievance != null) {
+            grievancesById.put(grievance.getGrievanceId(), grievance);
+        }
+    }
+
+    public synchronized void registerFeud(FeudCase feud) {
+        if (feud != null) {
+            feudsById.put(feud.getFeudId(), feud);
+        }
+    }
 }

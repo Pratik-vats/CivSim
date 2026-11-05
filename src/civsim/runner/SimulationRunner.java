@@ -35,7 +35,7 @@ public class SimulationRunner implements InitializingBean, DisposableBean {
     public static final int MAX_QUERY_QUEUE_SIZE = QUERY_QUEUE_CAPACITY;
     public static final int MAX_EVENT_HISTORY_SIZE = MAX_COMMAND_HISTORY;
 
-    private final String worldId = "world-001";
+    private volatile String worldId = "world-001";
     private final AtomicLong snapshotVersion = new AtomicLong(1);
 
     private SimulationEngine engine;
@@ -302,6 +302,12 @@ public class SimulationRunner implements InitializingBean, DisposableBean {
                         return;
                     }
                     SimulationEngine loaded = persistenceService.loadWorld(saveId);
+                    try {
+                        civsim.persistence.WorldSaveData sd = persistenceService.loadSaveData(saveId);
+                        if (sd.worldId != null && !sd.worldId.isBlank()) {
+                            this.worldId = sd.worldId;
+                        }
+                    } catch (Exception ignored) {}
                     this.engine.stop();
                     this.engine = loaded;
                     this.lifecycleState = SimulationLifecycleState.PAUSED;
@@ -311,7 +317,7 @@ public class SimulationRunner implements InitializingBean, DisposableBean {
                         eventBroadcaster.broadcastSnapshotUpdated(worldId, v);
                         eventBroadcaster.broadcastStatusChanged(worldId, "LOADING", lifecycleState.name());
                     }
-                    cmd.markCompleted("World successfully loaded from " + saveId, Map.of("year", engine.getTimeline().getYear(), "month", engine.getTimeline().getMonth()));
+                    cmd.markCompleted("World successfully loaded from " + saveId, Map.of("year", engine.getTimeline().getYear(), "month", engine.getTimeline().getMonth(), "worldId", worldId));
                 }
             }
         } catch (Exception e) {
@@ -356,6 +362,30 @@ public class SimulationRunner implements InitializingBean, DisposableBean {
             cmd.getFuture().completeExceptionally(new IllegalStateException("Read query queue full (Capacity " + QUERY_QUEUE_CAPACITY + " exhausted)"));
         }
         return cmd.getFuture();
+    }
+
+    public String getWorldId() {
+        return worldId;
+    }
+
+    public synchronized void setWorldId(String worldId) {
+        this.worldId = worldId;
+    }
+
+    public synchronized void createNewWorld(String worldName, long seed, SimulationConfig config) {
+        if (this.engine != null) {
+            this.engine.stop();
+        }
+        this.worldId = "world-" + UUID.randomUUID().toString().substring(0, 8);
+        this.engine = new SimulationEngine(config, ProgressionConfig.createDefault());
+        this.engine.initializeWorld();
+        this.lifecycleState = SimulationLifecycleState.PAUSED;
+        long v = snapshotVersion.incrementAndGet();
+        publishFreshSnapshots();
+        if (eventBroadcaster != null) {
+            eventBroadcaster.broadcastSnapshotUpdated(worldId, v);
+            eventBroadcaster.broadcastStatusChanged(worldId, "INITIALIZING", lifecycleState.name());
+        }
     }
 
     public WorldTickSnapshot getLatestSnapshot() {
@@ -446,7 +476,12 @@ public class SimulationRunner implements InitializingBean, DisposableBean {
     }
 
     public CompletableFuture<PersonDetailDto> queryPersonDetail(int personId) {
-        return submitQuery(eng -> SnapshotBuilder.buildPersonDetail(eng.getPerson(personId), eng.getOrganizationSystem()));
+        return submitQuery(eng -> SnapshotBuilder.buildPersonDetail(
+                eng.getPerson(personId),
+                eng.getOrganizationSystem(),
+                eng.getEquipmentCraftingSystem(),
+                eng.getClanHeirloomSystem()
+        ));
     }
 
     @Override

@@ -428,4 +428,18 @@ public class ClanHeirloomSystem {
     public int getHeirloomsLostCount() { return heirloomsLostCount; }
     public int getHeirloomsStolenOrCapturedCount() { return heirloomsStolenOrCapturedCount; }
     public int getHeirloomsRecoveredCount() { return heirloomsRecoveredCount; }
+
+    public synchronized void restoreHeirloom(ClanHeirloom heirloom) {
+        if (heirloom != null) {
+            heirlooms.put(heirloom.getHeirloomId(), heirloom);
+        }
+    }
+
+    public int getNextHeirloomSeq() { return nextHeirloomSeq; }
+    public void setNextHeirloomSeq(int seq) { this.nextHeirloomSeq = Math.max(1, seq); }
+    public void setHeirloomsRegisteredCount(int v) { this.heirloomsRegisteredCount = v; }
+    public void setHeirloomsInheritedCount(int v) { this.heirloomsInheritedCount = v; }
+    public void setHeirloomsLostCount(int v) { this.heirloomsLostCount = v; }
+    public void setHeirloomsStolenOrCapturedCount(int v) { this.heirloomsStolenOrCapturedCount = v; }
+    public void setHeirloomsRecoveredCount(int v) { this.heirloomsRecoveredCount = v; }
 }

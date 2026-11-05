@@ -108,6 +108,7 @@ public class CraftingWorkOrder {
     public int getStartMonth() { return startMonth; }
     public int getTotalMonthsRequired() { return totalMonthsRequired; }
     public int getMonthsProgressed() { return monthsProgressed; }
+    public void setMonthsProgressed(int months) { this.monthsProgressed = months; }
 
     public double getReservedIron() { return reservedIron; }
     public double getReservedOre() { return reservedOre; }

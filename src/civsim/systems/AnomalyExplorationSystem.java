@@ -1077,8 +1077,19 @@ public class AnomalyExplorationSystem {
         }
     }
 
+    public synchronized void registerContest(AnomalyContestRecord contest) {
+        if (contest != null) {
+            pendingContests.add(contest);
+        }
+    }
+
     public synchronized WorldAnomaly getAnomaly(String id) { return anomalies.get(id); }
     public synchronized List<WorldAnomaly> getAllAnomalies() { return Collections.unmodifiableList(new ArrayList<>(anomalies.values())); }
+    public synchronized void addAnomaly(WorldAnomaly anomaly) {
+        if (anomaly != null && anomaly.getAnomalyId() != null) {
+            anomalies.put(anomaly.getAnomalyId(), anomaly);
+        }
+    }
     public synchronized Expedition getExpedition(String id) { return expeditions.get(id); }
     public synchronized List<Expedition> getAllExpeditions() { return Collections.unmodifiableList(new ArrayList<>(expeditions.values())); }
     public synchronized List<Expedition> getActiveExpeditions() {

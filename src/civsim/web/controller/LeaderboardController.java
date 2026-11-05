@@ -22,10 +22,12 @@ public class LeaderboardController {
     }
 
     @GetMapping
-    public ResponseEntity<LeaderboardDto> getLeaderboard(@RequestParam(name = "category", defaultValue = "POWER") String category) {
+    public ResponseEntity<LeaderboardDto> getLeaderboard(
+            @RequestParam(name = "category", defaultValue = "POWER") String category,
+            @RequestParam(name = "year", required = false) Integer year) {
         try {
             LeaderboardDto dto = runner.submitQuery(engine ->
-                    SnapshotBuilder.buildLeaderboard(engine, category)
+                    SnapshotBuilder.buildLeaderboard(engine, category, year)
             ).get(3, TimeUnit.SECONDS);
 
             return ResponseEntity.ok(dto);
@@ -33,5 +35,8 @@ public class LeaderboardController {
             return ResponseEntity.internalServerError().build();
         }
     }
-}
 
+    public ResponseEntity<LeaderboardDto> getLeaderboard(String category) {
+        return getLeaderboard(category, null);
+    }
+}

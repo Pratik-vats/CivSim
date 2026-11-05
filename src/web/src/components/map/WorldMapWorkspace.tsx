@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { WorldMapSnapshot } from '../../types/api';
+import { WorldMapSnapshot, WorldOverlaysDto } from '../../types/api';
 import {
   WorldBounds,
   DEFAULT_WORLD_BOUNDS,
@@ -13,14 +13,17 @@ import { useMapStore } from '../../store/useMapStore';
 import { WorldCanvas } from './WorldCanvas';
 import { WorldSvgOverlay } from './WorldSvgOverlay';
 import { Minimap } from './Minimap';
-import { ZoomIn, ZoomOut, Maximize2, RotateCcw, Crosshair } from 'lucide-react';
+import { MapControlDock } from './MapControlDock';
+import { ContextualEntityCard } from './ContextualEntityCard';
+import { Crosshair } from 'lucide-react';
 
 interface WorldMapWorkspaceProps {
   mapSnapshot: WorldMapSnapshot;
+  overlays?: WorldOverlaysDto | null;
   isAwakened: boolean;
 }
 
-export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapshot, isAwakened }) => {
+export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapshot, overlays, isAwakened }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [dimensions, setDimensions] = useState<{ width: number; height: number }>({
     width: 800,
@@ -38,6 +41,8 @@ export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapsho
   const layers = useMapStore((s) => s.layers);
   const filters = useMapStore((s) => s.filters);
   const showMinimap = useMapStore((s) => s.showMinimap);
+  const drawerOpen = useMapStore((s) => s.drawerOpen);
+  const setDrawerOpen = useMapStore((s) => s.setDrawerOpen);
 
   // ResizeObserver to track container dimensions
   useEffect(() => {
@@ -250,9 +255,10 @@ export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapsho
         selectEntity(null);
       }}
     >
-      {/* 1. Canvas Layer (Terrain, Grid, Territories) */}
+      {/* 1. Canvas Layer (Terrain, Grid, Territories, Heatmaps) */}
       <WorldCanvas
         mapSnapshot={mapSnapshot}
+        overlays={overlays}
         camera={camera}
         baseScale={baseScale}
         bounds={bounds}
@@ -262,9 +268,10 @@ export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapsho
         height={dimensions.height}
       />
 
-      {/* 2. SVG Overlay Layer (Interactive Markers, Routes, Labels) */}
+      {/* 2. SVG Overlay Layer (Interactive Markers, Routes, Animated Flows, Conflicts) */}
       <WorldSvgOverlay
         mapSnapshot={mapSnapshot}
+        overlays={overlays}
         camera={camera}
         baseScale={baseScale}
         bounds={bounds}
@@ -307,74 +314,41 @@ export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapsho
         </div>
       </div>
 
-      {/* 5. Navigation Control Bar (Bottom Right) */}
-      <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 bg-slate-900/85 backdrop-blur border border-slate-700/70 p-1 rounded-lg shadow-xl">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setCamera((c) => zoomAroundPoint(dimensions.width / 2, dimensions.height / 2, 1.25, c));
-          }}
-          className="p-1.5 hover:bg-slate-800 text-slate-200 rounded transition"
-          title="Zoom In (+)"
-        >
-          <ZoomIn className="w-4 h-4" />
-        </button>
+      {/* 5. Modern Map Control Dock */}
+      <MapControlDock
+        onZoomIn={() => setCamera((c) => zoomAroundPoint(dimensions.width / 2, dimensions.height / 2, 1.25, c))}
+        onZoomOut={() => setCamera((c) => zoomAroundPoint(dimensions.width / 2, dimensions.height / 2, 0.8, c))}
+        onFitWorld={() => setCamera(getFitCamera(dimensions.width, dimensions.height, bounds))}
+        onResetView={() => setCamera({ panX: 0, panY: 0, zoom: 1.0 })}
+        hasSelectedEntity={!!selectedEntity}
+        onCenterSelected={() => {
+          if (!selectedEntity) return;
+          if (selectedEntity.type === 'SETTLEMENT') {
+            const s = mapSnapshot.settlements.find((v) => v.id === selectedEntity.id);
+            if (s) centerEntity(s.x, s.y);
+          } else if (selectedEntity.type === 'LAIR') {
+            const l = mapSnapshot.lairs.find((v) => v.lairId === selectedEntity.id);
+            if (l) centerEntity(l.x, l.y);
+          } else if (selectedEntity.type === 'ANOMALY') {
+            const a = mapSnapshot.anomalies.find((v) => v.anomalyId === selectedEntity.id);
+            if (a) centerEntity(a.x, a.y);
+          } else if (selectedEntity.type === 'EXPEDITION') {
+            const exp = mapSnapshot.expeditions.find((v) => v.expeditionId === selectedEntity.id);
+            if (exp) centerEntity(exp.currentX, exp.currentY);
+          }
+        }}
+        isAwakened={isAwakened}
+      />
 
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setCamera((c) => zoomAroundPoint(dimensions.width / 2, dimensions.height / 2, 0.8, c));
-          }}
-          className="p-1.5 hover:bg-slate-800 text-slate-200 rounded transition"
-          title="Zoom Out (-)"
-        >
-          <ZoomOut className="w-4 h-4" />
-        </button>
-
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setCamera(getFitCamera(dimensions.width, dimensions.height, bounds));
-          }}
-          className="p-1.5 hover:bg-slate-800 text-slate-200 rounded transition"
-          title="Fit World (0)"
-        >
-          <Maximize2 className="w-4 h-4" />
-        </button>
-
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setCamera({ panX: 0, panY: 0, zoom: 1.0 });
-          }}
-          className="p-1.5 hover:bg-slate-800 text-slate-200 rounded transition"
-          title="Reset View"
-        >
-          <RotateCcw className="w-4 h-4" />
-        </button>
-
-        {selectedEntity && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (selectedEntity.type === 'SETTLEMENT') {
-                const s = mapSnapshot.settlements.find((v) => v.id === selectedEntity.id);
-                if (s) centerEntity(s.x, s.y);
-              } else if (selectedEntity.type === 'LAIR') {
-                const l = mapSnapshot.lairs.find((v) => v.lairId === selectedEntity.id);
-                if (l) centerEntity(l.x, l.y);
-              } else if (selectedEntity.type === 'ANOMALY') {
-                const a = mapSnapshot.anomalies.find((v) => v.anomalyId === selectedEntity.id);
-                if (a) centerEntity(a.x, a.y);
-              }
-            }}
-            className="p-1.5 hover:bg-cyan-900/60 text-cyan-400 rounded transition"
-            title="Center Selected Entity"
-          >
-            <Crosshair className="w-4 h-4" />
-          </button>
-        )}
-      </div>
+      {/* 6. Contextual Entity Card (Appears on selection if full ledger is closed) */}
+      {!drawerOpen && selectedEntity && (
+        <ContextualEntityCard
+          mapSnapshot={mapSnapshot}
+          isAwakened={isAwakened}
+          onCenterEntity={(wx, wy) => centerEntity(wx, wy)}
+          onOpenLedger={() => setDrawerOpen(true)}
+        />
+      )}
 
       {/* 6. Minimap (Top Right) */}
       {showMinimap && (

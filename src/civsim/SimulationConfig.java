@@ -386,6 +386,20 @@ public class SimulationConfig {
                 policy);
     }
 
+    public SimulationConfig withAwakeningStartYear(int awakeningStartYear) {
+        return new SimulationConfig(
+                this.villageNames, this.initialPopulationPerVillage, this.tickDurationMillis, this.maxInitialAge, this.deathAge,
+                this.minMarriageAgeExclusive, this.maxMarriageAgeDifference, this.maxFemaleFertilityAge, this.minChildrenPerCouple,
+                this.maxChildrenPerCouple, this.minBirthIntervalMonths, this.randomSeed, this.maxSimulationYears, this.printIndividualEvents,
+                this.maxKinshipGenerations, this.preventSameFamilyMarriage, this.allowCrossVillageMarriage, this.allowMigration,
+                this.migrationPopulationThreshold, this.maxMigrantsPerYear, this.villagePopulationThreshold, this.townPopulationThreshold,
+                this.cityPopulationThreshold, this.megacityPopulationThreshold, this.allowColonization, this.minPopulationForColonization,
+                this.pioneerPartySize, this.foodPerPersonPerMonth, this.foodProducedPerFarmer, this.housingCapacityPerBuilding,
+                this.initialPersonalWealth, this.bankInterestRate, this.initialFoodPrice, this.taxRate, this.baseTechUpgradeCost,
+                this.disasterProbabilityPerYear, this.allowDiplomacyAndRaids, this.raidProbability, awakeningStartYear,
+                this.extinctionPolicy);
+    }
+
     public List<String> getVillageNames() { return villageNames; }
     public int getInitialPopulationPerVillage() { return initialPopulationPerVillage; }
     public long getTickDurationMillis() { return tickDurationMillis; }

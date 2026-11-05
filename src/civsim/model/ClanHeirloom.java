@@ -61,7 +61,9 @@ public class ClanHeirloom {
     }
 
     public String getCurrentBearerPersonId() { return currentBearerPersonId; }
+    public void setCurrentBearerPersonId(String id) { this.currentBearerPersonId = id; }
     public HeirloomCustodyStatus getCustodyStatus() { return custodyStatus; }
+    public void setCustodyStatus(HeirloomCustodyStatus status) { if (status != null) this.custodyStatus = status; }
 
     public List<String> getPastBearerIds() { return Collections.unmodifiableList(pastBearerIds); }
     public List<String> getBattleChronicle() { return Collections.unmodifiableList(battleChronicle); }

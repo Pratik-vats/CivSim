@@ -93,6 +93,18 @@ public class Organization {
     public int getBattlesWithdrawn() { return battlesWithdrawn; }
     public int getMemberCasualties() { return memberCasualties; }
 
+    public void setCurrentLeaderPersonId(String currentLeaderPersonId) {
+        this.currentLeaderPersonId = currentLeaderPersonId;
+    }
+
+    public void setBattlesParticipated(int battlesParticipated) {
+        this.battlesParticipated = battlesParticipated;
+    }
+
+    public void setBattlesWon(int battlesWon) {
+        this.battlesWon = battlesWon;
+    }
+
     public void setPolicyProfile(OrganizationPolicyProfile policyProfile) {
         if (policyProfile != null) {
             this.policyProfile = policyProfile;

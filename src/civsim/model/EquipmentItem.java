@@ -453,6 +453,21 @@ public class EquipmentItem {
         this.posY = y;
     }
 
+    public void setDurability(double durability) {
+        this.durability = Math.max(0.0, Math.min(this.maximumDurability, durability));
+        this.condition = EquipmentCondition.fromDurability(this.durability, this.maximumDurability);
+    }
+
+    public void setCondition(EquipmentCondition condition) {
+        if (condition != null) this.condition = condition;
+    }
+
+    public void addEnchantmentDirect(EnchantmentRecord enchantment) {
+        if (enchantment != null) {
+            this.enchantments.add(enchantment);
+        }
+    }
+
     public boolean isRegisteredHeirloom() {
         return registeredHeirloom;
     }

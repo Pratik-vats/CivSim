@@ -1,16 +1,19 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   WorldMapSnapshot,
+  WorldOverlaysDto,
   MapSettlementDto,
   MapLairDto,
   MapAnomalyDto,
   MapExpeditionDto,
 } from '../../types/api';
 import { CameraState, WorldBounds, worldToScreen } from '../../utils/coordinates';
-import { MapLayers, MapFilters, SelectedEntity, HoveredEntity } from '../../store/useMapStore';
+import { MapLayers, MapFilters, SelectedEntity, HoveredEntity, useMapStore } from '../../store/useMapStore';
+import { SettlementIllustratedMarker } from './SettlementIllustratedMarker';
 
 interface WorldSvgOverlayProps {
   mapSnapshot: WorldMapSnapshot;
+  overlays?: WorldOverlaysDto | null;
   camera: CameraState;
   baseScale: number;
   bounds: WorldBounds;
@@ -26,6 +29,7 @@ interface WorldSvgOverlayProps {
 
 export const WorldSvgOverlay: React.FC<WorldSvgOverlayProps> = ({
   mapSnapshot,
+  overlays,
   camera,
   baseScale,
   bounds,
@@ -38,6 +42,24 @@ export const WorldSvgOverlay: React.FC<WorldSvgOverlayProps> = ({
   width,
   height,
 }) => {
+  const openBattleDetail = useMapStore((s) => s.openBattleDetail);
+  const enableAnimations = useMapStore((s) => s.enableAnimations);
+  const reducedMotion = useMapStore((s) => s.reducedMotion);
+  const animationSpeed = useMapStore((s) => s.animationSpeed);
+  const dynamicOverlays = useMapStore((s) => s.dynamicOverlays);
+  const hoveredEntity = useMapStore((s) => s.hoveredEntity);
+
+  // Time ticker for animation phase offset
+  const [animTick, setAnimTick] = useState<number>(0);
+
+  useEffect(() => {
+    if (!enableAnimations || reducedMotion) return;
+    const interval = setInterval(() => {
+      setAnimTick((t) => (t + 0.05 * animationSpeed) % 1);
+    }, 50);
+    return () => clearInterval(interval);
+  }, [enableAnimations, reducedMotion, animationSpeed]);
+
   // Filter settlements
   const visibleSettlements = mapSnapshot.settlements.filter((s) => {
     if (!layers.settlements) return false;
@@ -87,7 +109,64 @@ export const WorldSvgOverlay: React.FC<WorldSvgOverlayProps> = ({
         </filter>
       </defs>
 
-      {/* 1. Expedition Routes (Lines) */}
+      {/* 1. Trade Caravan Animated Route Flow */}
+      {dynamicOverlays.tradeRoutes &&
+        overlays?.diplomaticLinks?.map((link, idx) => {
+          if (link.relationType !== 'ALLIED') return null;
+          const p1 = worldToScreen(link.originX, link.originY, camera, baseScale, bounds);
+          const p2 = worldToScreen(link.targetX, link.targetY, camera, baseScale, bounds);
+
+          const curRatio = enableAnimations && !reducedMotion ? (animTick + (idx * 0.25) % 1) % 1 : 0.5;
+          const dotX = p1.sx + (p2.sx - p1.sx) * curRatio;
+          const dotY = p1.sy + (p2.sy - p1.sy) * curRatio;
+
+          return (
+            <g key={`trade-flow-${idx}`} className="pointer-events-none">
+              <circle cx={dotX} cy={dotY} r="3" fill="#fbbf24" stroke="#78350f" strokeWidth="1" />
+            </g>
+          );
+        })}
+
+      {/* 2. Monster Invasion Wavefront Vectors */}
+      {dynamicOverlays.monsterThreat &&
+        overlays?.monsterInvasions?.map((inv) => {
+          const src = worldToScreen(inv.sourceX, inv.sourceY, camera, baseScale, bounds);
+          const tgt = worldToScreen(inv.targetX, inv.targetY, camera, baseScale, bounds);
+          const cur = worldToScreen(inv.currentX, inv.currentY, camera, baseScale, bounds);
+
+          return (
+            <g key={`inv-${inv.tideId}`} className="pointer-events-none">
+              {/* Invasion corridor */}
+              <line
+                x1={src.sx}
+                y1={src.sy}
+                x2={tgt.sx}
+                y2={tgt.sy}
+                stroke="rgba(239, 68, 68, 0.35)"
+                strokeWidth="2.5"
+                strokeDasharray="4 4"
+              />
+              {/* Vanguard Wavefront Marker */}
+              <circle
+                cx={cur.sx}
+                cy={cur.sy}
+                r="7"
+                fill="none"
+                stroke="#ef4444"
+                strokeWidth="2"
+                className={enableAnimations && !reducedMotion ? 'animate-ping' : ''}
+              />
+              <polygon
+                points={`${cur.sx},${cur.sy - 6} ${cur.sx + 6},${cur.sy + 6} ${cur.sx - 6},${cur.sy + 6}`}
+                fill="#b91c1c"
+                stroke="#fca5a5"
+                strokeWidth="1.5"
+              />
+            </g>
+          );
+        })}
+
+      {/* 3. Expedition Routes & Moving Tokens */}
       {visibleExpeditions.map((exp) => {
         const originVillage = mapSnapshot.settlements.find((v) => String(v.id) === exp.originVillageId);
         const targetAnomaly = mapSnapshot.anomalies.find((a) => a.anomalyId === exp.targetAnomalyId);
@@ -125,7 +204,58 @@ export const WorldSvgOverlay: React.FC<WorldSvgOverlayProps> = ({
         );
       })}
 
-      {/* 2. Monster Lairs */}
+      {/* 4. Active Battles & Conflicts Indicators */}
+      {dynamicOverlays.activeConflicts &&
+        overlays?.activeConflicts?.map((conflict) => {
+          const { sx, sy } = worldToScreen(conflict.x, conflict.y, camera, baseScale, bounds);
+
+          return (
+            <g
+              key={`conflict-${conflict.conflictId}`}
+              transform={`translate(${sx}, ${sy})`}
+              className="cursor-pointer transition-transform hover:scale-125"
+              onClick={(e) => {
+                e.stopPropagation();
+                openBattleDetail(conflict.conflictId);
+              }}
+              onMouseEnter={() =>
+                onHoverEntity({
+                  type: 'SETTLEMENT',
+                  id: conflict.conflictId,
+                  name: `Active Conflict: ${conflict.name}`,
+                  x: conflict.x,
+                  y: conflict.y,
+                  details: `Casualties: ${conflict.totalCombatants} | Type: ${conflict.conflictType} | Year ${conflict.year}`,
+                  screenX: sx,
+                  screenY: sy,
+                })
+              }
+              onMouseLeave={() => onHoverEntity(null)}
+            >
+              {/* Pulsing Alert Ring */}
+              <circle
+                r="18"
+                fill="none"
+                stroke="#ef4444"
+                strokeWidth="2"
+                strokeDasharray="3 3"
+                className={enableAnimations && !reducedMotion ? 'animate-spin' : ''}
+              />
+              <circle r="12" fill="#7f1d1d" stroke="#fca5a5" strokeWidth="1.5" />
+              {/* Crossed swords symbol */}
+              <text x="0" y="4" fontSize="11" textAnchor="middle" fill="#ffffff">
+                ⚔
+              </text>
+              {/* Casualty Badge */}
+              <rect x="5" y="-14" width="16" height="10" rx="3" fill="#1e1b4b" stroke="#f43f5e" strokeWidth="1" />
+              <text x="13" y="-7" fontSize="8" fill="#fda4af" textAnchor="middle" fontWeight="bold">
+                {conflict.totalCombatants}
+              </text>
+            </g>
+          );
+        })}
+
+      {/* 5. Monster Lairs */}
       {visibleLairs.map((lair) => {
         const { sx, sy } = worldToScreen(lair.x, lair.y, camera, baseScale, bounds);
         const isSelected = selectedEntity?.type === 'LAIR' && selectedEntity.id === lair.lairId;
@@ -160,7 +290,6 @@ export const WorldSvgOverlay: React.FC<WorldSvgOverlayProps> = ({
             }
             onMouseLeave={() => onHoverEntity(null)}
           >
-            {/* Selection Aura */}
             {isSelected && (
               <circle
                 r="22"
@@ -168,62 +297,85 @@ export const WorldSvgOverlay: React.FC<WorldSvgOverlayProps> = ({
                 stroke="#f43f5e"
                 strokeWidth="2.5"
                 strokeDasharray="4 2"
-                className="animate-spin"
+                className={enableAnimations && !reducedMotion ? 'animate-spin' : ''}
                 style={{ transformOrigin: 'center' }}
               />
             )}
 
-            {/* Lair Shape: Diamond / Spiked Node */}
-            <polygon
-              points="0,-14 12,0 0,14 -12,0"
-              fill={isDestroyed ? '#334155' : '#1e1b4b'}
-              stroke={isDestroyed ? '#64748b' : badgeColor}
-              strokeWidth="2"
-              filter={!isDestroyed && lair.threatRank === 'MYTHIC' ? 'url(#glow-red)' : undefined}
-            />
+            {/* Illustrated Beast Den / Cavern Marker */}
+            {isDestroyed ? (
+              <g>
+                <circle r="10" fill="#334155" stroke="#64748b" strokeWidth="1.5" />
+                <line x1="-6" y1="-6" x2="6" y2="6" stroke="#94a3b8" strokeWidth="2" />
+                <line x1="-6" y1="6" x2="6" y2="-6" stroke="#94a3b8" strokeWidth="2" />
+              </g>
+            ) : (
+              <g filter="drop-shadow(0px 2px 5px rgba(0,0,0,0.8))">
+                <polygon
+                  points="-14,10 -11,-8 -2,-15 11,-8 14,10 0,6"
+                  fill="#1c1917"
+                  stroke={badgeColor}
+                  strokeWidth="1.8"
+                />
+                <path d="M -7,8 Q 0,-2 7,8 Z" fill="#09090b" />
+                <circle
+                  cx="-2.5"
+                  cy="4"
+                  r="1.2"
+                  fill={lair.threatRank === 'MYTHIC' ? '#ef4444' : '#f97316'}
+                  className={enableAnimations && !reducedMotion ? 'animate-pulse' : ''}
+                />
+                <circle
+                  cx="2.5"
+                  cy="4"
+                  r="1.2"
+                  fill={lair.threatRank === 'MYTHIC' ? '#ef4444' : '#f97316'}
+                  className={enableAnimations && !reducedMotion ? 'animate-pulse' : ''}
+                />
+              </g>
+            )}
 
-            {/* Monster skull/threat symbol */}
-            <circle r="4" fill={isDestroyed ? '#64748b' : badgeColor} />
+            {!isDestroyed && (
+              <g transform="translate(10, -12)">
+                <rect x="-4" y="-7" width="22" height="13" rx="3.5" fill="#0f172a" stroke={badgeColor} strokeWidth="1" />
+                <text x="7" y="2" fontSize="8.5" fill="#ffffff" textAnchor="middle" fontWeight="bold">
+                  {lair.monsterCount}
+                </text>
+              </g>
+            )}
 
-            {/* Count Badge */}
-            <rect x="6" y="-12" width="16" height="10" rx="3" fill="#0f172a" stroke={badgeColor} strokeWidth="1" />
-            <text x="14" y="-5" fontSize="8" fill="#ffffff" textAnchor="middle" fontWeight="bold">
-              {lair.monsterCount}
-            </text>
-
-            {/* Lair Label */}
             {layers.labels && camera.zoom >= 0.8 && (
               <text
                 x="0"
                 y="24"
                 textAnchor="middle"
                 fontSize="10"
-                fill={isAwakened ? '#f87171' : '#fca5a5'}
-                fontWeight="600"
-                className="drop-shadow-md select-none"
+                fill={badgeColor}
+                fontWeight="bold"
+                className="drop-shadow select-none"
               >
-                {lair.primarySpecies} Lair
+                {lair.primarySpecies}
               </text>
             )}
           </g>
         );
       })}
 
-      {/* 3. Supernatural Anomalies */}
+      {/* 6. Aether Anomalies */}
       {visibleAnomalies.map((anom) => {
         const { sx, sy } = worldToScreen(anom.x, anom.y, camera, baseScale, bounds);
         const isSelected = selectedEntity?.type === 'ANOMALY' && selectedEntity.id === anom.anomalyId;
 
-        let gradeColor = '#06b6d4'; // Cyan default
-        if (anom.resourceGrade === 'LEGENDARY') gradeColor = '#f59e0b';
-        else if (anom.resourceGrade === 'MYTHIC') gradeColor = '#ec4899';
-        else if (anom.resourceGrade === 'RARE') gradeColor = '#8b5cf6';
+        let gradeColor = '#94a3b8';
+        if (anom.resourceGrade === 'RARE') gradeColor = '#38bdf8';
+        else if (anom.resourceGrade === 'LEGENDARY') gradeColor = '#fbbf24';
+        else if (anom.resourceGrade === 'MYTHIC') gradeColor = '#f43f5e';
 
         return (
           <g
             key={`anom-${anom.anomalyId}`}
             transform={`translate(${sx}, ${sy})`}
-            className="cursor-pointer transition-transform hover:scale-125"
+            className="cursor-pointer transition-transform hover:scale-110"
             onClick={(e) => {
               e.stopPropagation();
               onSelectEntity({ type: 'ANOMALY', id: anom.anomalyId });
@@ -232,43 +384,47 @@ export const WorldSvgOverlay: React.FC<WorldSvgOverlayProps> = ({
               onHoverEntity({
                 type: 'ANOMALY',
                 id: anom.anomalyId,
-                name: `Aether Anomaly [${anom.resourceGrade}]`,
+                name: `${anom.resourceGrade} ${anom.resourceCategory}`,
                 x: anom.x,
                 y: anom.y,
-                details: `${anom.resourceCategory} | Reserves: ${anom.remainingQuantity} | State: ${anom.state}`,
+                details: `State: ${anom.state} | Remaining: ${anom.remainingQuantity}/${anom.initialQuantity}`,
                 screenX: sx,
                 screenY: sy,
               })
             }
             onMouseLeave={() => onHoverEntity(null)}
           >
-            {/* Selection Beacon */}
             {isSelected && (
               <circle
                 r="18"
                 fill="none"
                 stroke={gradeColor}
                 strokeWidth="2"
-                strokeDasharray="3 3"
-                className="animate-spin"
-                style={{ transformOrigin: 'center' }}
+                strokeDasharray="4 2"
+                className={enableAnimations && !reducedMotion ? 'animate-spin' : ''}
               />
             )}
 
-            {/* Glowing Diamond */}
-            <polygon
-              points="0,-10 9,0 0,10 -9,0"
-              fill={gradeColor}
-              fillOpacity="0.85"
-              stroke="#ffffff"
-              strokeWidth="1.5"
-              filter={anom.resourceGrade === 'MYTHIC' || anom.resourceGrade === 'LEGENDARY' ? 'url(#glow-gold)' : 'url(#glow-cyan)'}
-            />
+            {/* Illustrated Ancient Arcane Obelisk */}
+            <g filter={anom.resourceGrade === 'MYTHIC' ? 'url(#glow-cyan)' : 'drop-shadow(0px 2px 4px rgba(0,0,0,0.7))'}>
+              <circle r="9" fill="none" stroke={gradeColor} strokeWidth="1" strokeDasharray="3 2" />
+              <polygon
+                points="0,-12 6,-3 4,7 0,11 -4,7 -6,-3"
+                fill="#0f172a"
+                stroke={gradeColor}
+                strokeWidth="1.8"
+              />
+              <circle
+                cx="0"
+                cy="0"
+                r="2.5"
+                fill={gradeColor}
+                className={enableAnimations && !reducedMotion ? 'animate-pulse' : ''}
+              />
+              <polygon points="8,-4 10,-2 8,0 6,-2" fill={gradeColor} />
+              <polygon points="-8,2 -10,4 -8,6 -6,4" fill={gradeColor} />
+            </g>
 
-            {/* Internal Core */}
-            <circle r="3" fill="#ffffff" />
-
-            {/* Label */}
             {layers.labels && camera.zoom >= 0.9 && (
               <text
                 x="0"
@@ -286,7 +442,7 @@ export const WorldSvgOverlay: React.FC<WorldSvgOverlayProps> = ({
         );
       })}
 
-      {/* 4. Active Expeditions */}
+      {/* 7. Expeditions */}
       {visibleExpeditions.map((exp) => {
         const { sx, sy } = worldToScreen(exp.currentX, exp.currentY, camera, baseScale, bounds);
         const isSelected = selectedEntity?.type === 'EXPEDITION' && selectedEntity.id === exp.expeditionId;
@@ -323,28 +479,27 @@ export const WorldSvgOverlay: React.FC<WorldSvgOverlayProps> = ({
         );
       })}
 
-      {/* 5. Settlements (Top Layer for interaction priority) */}
+      {/* 8. Settlements (Illustrated Architectural Markers with Progressive LOD) */}
       {visibleSettlements.map((s) => {
         const { sx, sy } = worldToScreen(s.x, s.y, camera, baseScale, bounds);
         const isSelected = selectedEntity?.type === 'SETTLEMENT' && selectedEntity.id === s.id;
+        const isHovered = hoveredEntity?.type === 'SETTLEMENT' && hoveredEntity.id === s.id;
 
-        // Bounded logarithmic / square-root scaling:
-        // Min radius: 10px, Max radius: 30px
-        const radius = Math.min(30, Math.max(10, 8 + Math.sqrt(Math.max(1, s.population)) * 0.35));
-
-        // Tier Color & Outer Ring
-        let tierColor = '#3b82f6'; // HAMLET
-        let tierBorder = '#60a5fa';
-        if (s.tier === 'VILLAGE') { tierColor = '#10b981'; tierBorder = '#34d399'; }
-        else if (s.tier === 'TOWN') { tierColor = '#8b5cf6'; tierBorder = '#a78bfa'; }
-        else if (s.tier === 'CITY') { tierColor = '#f59e0b'; tierBorder = '#fbbf24'; }
-        else if (s.tier === 'MEGACITY') { tierColor = '#ec4899'; tierBorder = '#f472b6'; }
+        // Label collision avoidance: hide small settlement labels when overcrowded unless hovered/selected
+        const isLabelCrowded =
+          camera.zoom < 1.4 &&
+          visibleSettlements.some(
+            (other) =>
+              other.id !== s.id &&
+              other.population > s.population &&
+              Math.hypot(s.x - other.x, s.y - other.y) * baseScale * camera.zoom < 75
+          );
 
         return (
           <g
             key={`settlement-${s.id}`}
             transform={`translate(${sx}, ${sy})`}
-            className="cursor-pointer transition-transform hover:scale-115"
+            className="transition-transform hover:scale-110"
             onClick={(e) => {
               e.stopPropagation();
               onSelectEntity({ type: 'SETTLEMENT', id: s.id });
@@ -356,84 +511,32 @@ export const WorldSvgOverlay: React.FC<WorldSvgOverlayProps> = ({
                 name: s.name,
                 x: s.x,
                 y: s.y,
-                details: `${s.tier} (${s.biome}) | Pop: ${s.population} | Tech: ${s.techLevel}${s.inFamine ? ' | FAMINE!' : ''}`,
+                details: `${s.tier} (${s.biome}) | Pop: ${s.population.toLocaleString()} | Tech: Tier ${s.techLevel}${
+                  s.dominantClanName ? ` | Clan: ${s.dominantClanName}` : ''
+                }${s.inFamine ? ' | FAMINE!' : ''}`,
                 screenX: sx,
                 screenY: sy,
               })
             }
             onMouseLeave={() => onHoverEntity(null)}
           >
-            {/* Selection Pulse Ring */}
-            {isSelected && (
-              <circle
-                r={radius + 8}
-                fill="none"
-                stroke={isAwakened ? '#06b6d4' : '#eab308'}
-                strokeWidth="2.5"
-                strokeDasharray="4 2"
-                className="animate-spin"
-                style={{ transformOrigin: 'center' }}
-              />
-            )}
-
-            {/* Settlement Outer Body */}
-            <circle
-              r={radius}
-              fill={tierColor}
-              stroke={tierBorder}
-              strokeWidth="2.5"
-              fillOpacity={0.88}
-              filter="drop-shadow(0px 2px 4px rgba(0,0,0,0.5))"
+            <SettlementIllustratedMarker
+              settlement={s}
+              zoom={camera.zoom}
+              isSelected={isSelected}
+              isHovered={isHovered}
+              isAwakened={isAwakened}
+              enableAnimations={enableAnimations}
+              reducedMotion={reducedMotion}
+              showLabels={
+                layers.labels &&
+                (camera.zoom >= 0.75 || isSelected || isHovered) &&
+                (!isLabelCrowded || isSelected || isHovered)
+              }
             />
-
-            {/* Multi-ring Citadel indicator for City/Megacity */}
-            {(s.tier === 'CITY' || s.tier === 'MEGACITY') && (
-              <circle r={radius * 0.65} fill="none" stroke="#ffffff" strokeWidth="1.5" strokeDasharray="3 2" />
-            )}
-
-            {/* Inner Core */}
-            <circle r={radius * 0.35} fill="#ffffff" />
-
-            {/* Famine Warning Alert */}
-            {s.inFamine && (
-              <g transform={`translate(${radius * 0.7}, -${radius * 0.7})`}>
-                <circle r="7" fill="#ef4444" stroke="#ffffff" strokeWidth="1" />
-                <text x="0" y="3" fill="#ffffff" fontSize="8" fontWeight="bold" textAnchor="middle">
-                  !
-                </text>
-              </g>
-            )}
-
-            {/* Settlement Name & Population Label */}
-            {layers.labels && (
-              <g transform={`translate(0, ${radius + 12})`}>
-                <rect
-                  x="-45"
-                  y="-10"
-                  width="90"
-                  height="16"
-                  rx="4"
-                  fill="rgba(15, 23, 42, 0.85)"
-                  stroke={isSelected ? '#38bdf8' : 'rgba(71, 85, 105, 0.5)'}
-                  strokeWidth="1"
-                />
-                <text
-                  x="0"
-                  y="2"
-                  textAnchor="middle"
-                  fontSize="9.5"
-                  fill="#f8fafc"
-                  fontWeight="bold"
-                  className="select-none"
-                >
-                  {s.name} ({s.population})
-                </text>
-              </g>
-            )}
           </g>
         );
       })}
     </svg>
   );
 };
-
