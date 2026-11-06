@@ -71,7 +71,8 @@ scratch/
 gen_map.py
 **/gen_map.py
 /mie_expanded_world_map.svg
-/mie_expanded_world_map2.svg
+mie_expanded_world_map2.svg
+**/mie_expanded_world_map2.svg
 !frontend/public/mie_expanded_world_map.svg
 cdp_screenshot.js
 test_and_screenshot.*
