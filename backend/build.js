@@ -21,10 +21,6 @@ if (sources.length === 0) {
 const sourceList = path.join(root, 'compile_sources.txt');
 fs.writeFileSync(sourceList, `${sources.map((source) => path.relative(root, source).replace(/\\/g, '/')).join('\n')}\n`);
 const outputDirectory = path.join(root, 'bin');
-if (outputDirectory !== path.join(root, 'bin')) {
-  console.error('Refusing to clean an unexpected compiler output directory.');
-  process.exit(1);
-}
 fs.rmSync(outputDirectory, { recursive: true, force: true });
 fs.mkdirSync(outputDirectory, { recursive: true });
 

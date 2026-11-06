@@ -6,7 +6,6 @@ import {
   CIVILIZATION_BOUNDS,
   calculateBaseScale,
   getFitCamera,
-  getCoverCamera,
   getRegionFitCamera,
   zoomAroundPoint,
   screenToWorld,
@@ -19,6 +18,8 @@ import { Minimap } from './Minimap';
 import { MapControlDock } from './MapControlDock';
 import { ContextualEntityCard } from './ContextualEntityCard';
 import { Crosshair } from 'lucide-react';
+
+const INITIAL_CAMERA_ZOOM = 1.95;
 
 interface WorldMapWorkspaceProps {
   mapSnapshot: WorldMapSnapshot;
@@ -48,6 +49,7 @@ export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapsho
   const setDrawerOpen = useMapStore((s) => s.setDrawerOpen);
 
   // ResizeObserver to track container dimensions
+  const hasObservedSizeRef = useRef(false);
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -56,6 +58,7 @@ export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapsho
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
         if (width > 0 && height > 0) {
+          hasObservedSizeRef.current = true;
           setDimensions({ width, height });
         }
       }
@@ -73,8 +76,8 @@ export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapsho
   // Center & Fit World on initial load
   const initializedRef = useRef(false);
   useEffect(() => {
-    if (!initializedRef.current && dimensions.width > 100 && dimensions.height > 100) {
-      setCamera(getCoverCamera(dimensions.width, dimensions.height, bounds));
+    if (hasObservedSizeRef.current && !initializedRef.current && dimensions.width > 100 && dimensions.height > 100) {
+      setCamera(getFitCamera(dimensions.width, dimensions.height, bounds, 40, INITIAL_CAMERA_ZOOM));
       initializedRef.current = true;
     }
   }, [dimensions, bounds, setCamera]);
@@ -158,6 +161,7 @@ export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapsho
   );
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.target instanceof Element && e.target.closest('[data-map-ui="true"]')) return;
     if (e.touches.length === 1) {
       touchStartRef.current = {
         dist: 0,
@@ -210,6 +214,23 @@ export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapsho
     touchStartRef.current = null;
   };
 
+  const worldPixelHeight = bounds.height * baseScale * camera.zoom;
+  const minPanY = Math.min(0, dimensions.height - worldPixelHeight);
+  const canScrollVertically = minPanY < -1;
+  const verticalScrollProgress = canScrollVertically
+    ? Math.max(0, Math.min(1, camera.panY / minPanY))
+    : 0;
+
+  const moveMapFromVerticalScroll = (clientY: number, track: HTMLDivElement) => {
+    if (!canScrollVertically) return;
+    const rect = track.getBoundingClientRect();
+    const usableTrackHeight = Math.max(1, rect.height - 36);
+    const progress = Math.max(0, Math.min(1, (clientY - rect.top - 18) / usableTrackHeight));
+    setCamera((prev) => ({ ...prev, panY: minPanY * progress }));
+  };
+
+  const verticalScrollerTop = showMinimap ? Math.min(224, dimensions.height * 0.45) : dimensions.height * 0.2;
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -225,7 +246,7 @@ export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapsho
       } else if (e.key === '-' || e.key === '_') {
         setCamera((c) => zoomAroundPoint(dimensions.width / 2, dimensions.height / 2, 0.8, c));
       } else if (e.key === '0') {
-        setCamera(getCoverCamera(dimensions.width, dimensions.height, bounds));
+        setCamera(getFitCamera(dimensions.width, dimensions.height, bounds, 40, INITIAL_CAMERA_ZOOM));
       }
     };
 
@@ -322,12 +343,58 @@ export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapsho
       </div>
 
       {/* 5. Modern Map Control Dock */}
+      {canScrollVertically && (
+        <div
+          data-map-ui="true"
+          role="scrollbar"
+          aria-label="Scroll vertically across the zoomed map"
+          aria-orientation="vertical"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(verticalScrollProgress * 100)}
+          tabIndex={0}
+          className="mie-map-pan-scroller"
+          style={{ top: verticalScrollerTop, bottom: 100 }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.setPointerCapture(e.pointerId);
+            moveMapFromVerticalScroll(e.clientY, e.currentTarget);
+          }}
+          onPointerMove={(e) => {
+            if (e.currentTarget.hasPointerCapture(e.pointerId)) moveMapFromVerticalScroll(e.clientY, e.currentTarget);
+          }}
+          onPointerUp={(e) => {
+            if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+              e.preventDefault();
+              e.stopPropagation();
+              setCamera((prev) => ({ ...prev, panY: Math.max(minPanY, prev.panY - dimensions.height * 0.15) }));
+            } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+              e.preventDefault();
+              e.stopPropagation();
+              setCamera((prev) => ({ ...prev, panY: Math.min(0, prev.panY + dimensions.height * 0.15) }));
+            }
+          }}
+        >
+          <span className="mie-map-pan-track" />
+          <span
+            className="mie-map-pan-thumb"
+            style={{ top: `calc(18px + ${verticalScrollProgress * 100}% - ${verticalScrollProgress * 36}px)` }}
+          />
+        </div>
+      )}
+
+      {/* 6. Modern Map Control Dock */}
       <MapControlDock
         onZoomIn={() => setCamera((c) => zoomAroundPoint(dimensions.width / 2, dimensions.height / 2, 1.25, c))}
         onZoomOut={() => setCamera((c) => zoomAroundPoint(dimensions.width / 2, dimensions.height / 2, 0.8, c))}
         onFitWorld={() => setCamera(getFitCamera(dimensions.width, dimensions.height, bounds))}
         onFocusCivilization={() => setCamera(getRegionFitCamera(dimensions.width, dimensions.height, CIVILIZATION_BOUNDS, bounds))}
-        onResetView={() => setCamera(getCoverCamera(dimensions.width, dimensions.height, bounds))}
+        onResetView={() => setCamera(getFitCamera(dimensions.width, dimensions.height, bounds, 40, INITIAL_CAMERA_ZOOM))}
         hasSelectedEntity={!!selectedEntity}
         onCenterSelected={() => {
           if (!selectedEntity) return;

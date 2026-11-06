@@ -77,6 +77,7 @@ export const WorldSvgOverlay: React.FC<WorldSvgOverlayProps> = ({
   // Filter lairs
   const visibleLairs = mapSnapshot.lairs.filter((l) => {
     if (!layers.lairs) return false;
+    if (l.monsterCount <= 0) return false;
     if (filters.lairThreat !== 'ALL' && l.threatRank !== filters.lairThreat) return false;
     return inViewport(l.x, l.y, 72);
   });
@@ -276,7 +277,7 @@ export const WorldSvgOverlay: React.FC<WorldSvgOverlayProps> = ({
           <g
             key={`lair-${lair.lairId}`}
             transform={`translate(${sx}, ${sy})`}
-            className="cursor-pointer transition-transform hover:scale-110"
+            className="cursor-pointer map-entity-marker"
             onClick={(e) => {
               e.stopPropagation();
               onSelectEntity({ type: 'LAIR', id: lair.lairId });
@@ -315,29 +316,15 @@ export const WorldSvgOverlay: React.FC<WorldSvgOverlayProps> = ({
                 <line x1="-6" y1="6" x2="6" y2="-6" stroke="#94a3b8" strokeWidth="2" />
               </g>
             ) : (
-              <g filter="drop-shadow(0px 2px 5px rgba(0,0,0,0.8))">
-                <polygon
-                  points="-14,10 -11,-8 -2,-15 11,-8 14,10 0,6"
-                  fill="#1c1917"
-                  stroke={badgeColor}
-                  strokeWidth="1.8"
-                />
-                <path d="M -7,8 Q 0,-2 7,8 Z" fill="#09090b" />
-                <circle
-                  cx="-2.5"
-                  cy="4"
-                  r="1.2"
-                  fill={lair.threatRank === 'MYTHIC' ? '#ef4444' : '#f97316'}
-                  className={enableAnimations && !reducedMotion ? 'animate-pulse' : ''}
-                />
-                <circle
-                  cx="2.5"
-                  cy="4"
-                  r="1.2"
-                  fill={lair.threatRank === 'MYTHIC' ? '#ef4444' : '#f97316'}
-                  className={enableAnimations && !reducedMotion ? 'animate-pulse' : ''}
-                />
-              </g>
+              <image
+                href="/map-icons/monster_lair.svg"
+                x="-22"
+                y="-42"
+                width="44"
+                height="44"
+                preserveAspectRatio="xMidYMax meet"
+                filter="drop-shadow(0px 2px 5px rgba(0,0,0,0.8))"
+              />
             )}
 
             {!isDestroyed && (
@@ -380,7 +367,7 @@ export const WorldSvgOverlay: React.FC<WorldSvgOverlayProps> = ({
           <g
             key={`anom-${anom.anomalyId}`}
             transform={`translate(${sx}, ${sy})`}
-            className="cursor-pointer transition-transform hover:scale-110"
+            className="cursor-pointer map-entity-marker"
             onClick={(e) => {
               e.stopPropagation();
               onSelectEntity({ type: 'ANOMALY', id: anom.anomalyId });
@@ -411,24 +398,15 @@ export const WorldSvgOverlay: React.FC<WorldSvgOverlayProps> = ({
             )}
 
             {/* Illustrated Ancient Arcane Obelisk */}
-            <g filter={anom.resourceGrade === 'MYTHIC' ? 'url(#glow-cyan)' : 'drop-shadow(0px 2px 4px rgba(0,0,0,0.7))'}>
-              <circle r="9" fill="none" stroke={gradeColor} strokeWidth="1" strokeDasharray="3 2" />
-              <polygon
-                points="0,-12 6,-3 4,7 0,11 -4,7 -6,-3"
-                fill="#0f172a"
-                stroke={gradeColor}
-                strokeWidth="1.8"
-              />
-              <circle
-                cx="0"
-                cy="0"
-                r="2.5"
-                fill={gradeColor}
-                className={enableAnimations && !reducedMotion ? 'animate-pulse' : ''}
-              />
-              <polygon points="8,-4 10,-2 8,0 6,-2" fill={gradeColor} />
-              <polygon points="-8,2 -10,4 -8,6 -6,4" fill={gradeColor} />
-            </g>
+            <image
+              href={`/map-icons/ather_crystal_${anom.resourceGrade.toLowerCase()}.svg`}
+              x="-18"
+              y="-36"
+              width="36"
+              height="36"
+              preserveAspectRatio="xMidYMax meet"
+              filter={anom.resourceGrade === 'MYTHIC' ? 'url(#glow-cyan)' : 'drop-shadow(0px 2px 4px rgba(0,0,0,0.7))'}
+            />
 
             {layers.labels && camera.zoom >= 0.9 && (
               <text
@@ -504,7 +482,7 @@ export const WorldSvgOverlay: React.FC<WorldSvgOverlayProps> = ({
           <g
             key={`settlement-${s.id}`}
             transform={`translate(${sx}, ${sy})`}
-            className="transition-transform hover:scale-110"
+            className="map-entity-marker"
             onClick={(e) => {
               e.stopPropagation();
               onSelectEntity({ type: 'SETTLEMENT', id: s.id });

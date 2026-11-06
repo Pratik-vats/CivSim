@@ -141,7 +141,7 @@ export interface SearchResultDto {
 
 export interface SimulationStatusDto {
   worldId: string;
-  lifecycleState: 'INITIALIZING' | 'STOPPED' | 'RUNNING' | 'PAUSED' | 'HUMAN_EXTINCT' | 'ERROR';
+  lifecycleState: 'INITIALIZING' | 'STOPPED' | 'RUNNING' | 'PAUSED' | 'HUMAN_EXTINCT' | 'COMPLETED' | 'ERROR';
   speed: string;
   tickIntervalMillis: number;
   currentYear: number;

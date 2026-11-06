@@ -28,6 +28,9 @@ import java.util.function.Function;
 @Service
 public class SimulationRunner implements InitializingBean, DisposableBean {
 
+    public static final int MAX_SIMULATION_YEARS = 300;
+    private static final long MAX_SIMULATION_MONTHS = MAX_SIMULATION_YEARS * 12L;
+
     public static final int COMMAND_QUEUE_CAPACITY = 100;
     public static final int QUERY_QUEUE_CAPACITY = 200;
     public static final int MAX_COMMAND_HISTORY = 200;
@@ -119,6 +122,7 @@ public class SimulationRunner implements InitializingBean, DisposableBean {
                     executeMonthlyTick();
                     applySpeedDelay();
                 } else if (lifecycleState == SimulationLifecycleState.PAUSED
+                        || lifecycleState == SimulationLifecycleState.COMPLETED
                         || (lifecycleState == SimulationLifecycleState.HUMAN_EXTINCT && engine.getConfig().getExtinctionPolicy().isStopOnExtinction())
                         || lifecycleState == SimulationLifecycleState.ERROR) {
                     // When paused or stopped, wait briefly for incoming commands
@@ -148,7 +152,13 @@ public class SimulationRunner implements InitializingBean, DisposableBean {
 
     private void executeMonthlyTick() {
         try {
+            if (markCompletedAtYearLimit()) {
+                publishFreshSnapshots();
+                announceSimulationComplete();
+                return;
+            }
             engine.processMonthlyTick();
+            boolean completed = markCompletedAtYearLimit();
             long v = snapshotVersion.incrementAndGet();
             publishFreshSnapshots();
 
@@ -158,6 +168,11 @@ public class SimulationRunner implements InitializingBean, DisposableBean {
 
             if (eventBroadcaster != null) {
                 eventBroadcaster.broadcastTickCompleted(worldId, totalMonths, v, year, month, lifecycleState.name());
+            }
+
+            if (completed) {
+                announceSimulationComplete();
+                return;
             }
 
             if (engine.isHumanExtinct() && lifecycleState == SimulationLifecycleState.RUNNING) {
@@ -223,8 +238,14 @@ public class SimulationRunner implements InitializingBean, DisposableBean {
                 }
                 case RESUME -> {
                     if (lifecycleState == SimulationLifecycleState.PAUSED) {
-                        transitionState(SimulationLifecycleState.RUNNING);
-                        cmd.markCompleted("Simulation resumed successfully", Map.of("state", lifecycleState.name()));
+                        if (markCompletedAtYearLimit()) {
+                            publishFreshSnapshots();
+                            announceSimulationComplete();
+                            cmd.markRejected("Simulation is complete; the 300-year limit has been reached.");
+                        } else {
+                            transitionState(SimulationLifecycleState.RUNNING);
+                            cmd.markCompleted("Simulation resumed successfully", Map.of("state", lifecycleState.name()));
+                        }
                     } else if (lifecycleState == SimulationLifecycleState.HUMAN_EXTINCT && engine.getConfig().getExtinctionPolicy() == ExtinctionPolicy.CONTINUE_NONHUMAN_WORLD) {
                         transitionState(SimulationLifecycleState.HUMAN_EXTINCT);
                         cmd.markCompleted("Non-human simulation resumed", Map.of("state", lifecycleState.name()));
@@ -237,7 +258,14 @@ public class SimulationRunner implements InitializingBean, DisposableBean {
                         cmd.markRejected("Manual step permitted only when simulation is PAUSED (Current: " + lifecycleState + ")");
                         return;
                     }
+                    if (markCompletedAtYearLimit()) {
+                        publishFreshSnapshots();
+                        announceSimulationComplete();
+                        cmd.markRejected("Simulation is complete; the 300-year limit has been reached.");
+                        return;
+                    }
                     engine.processMonthlyTick();
+                    boolean completed = markCompletedAtYearLimit();
                     long v = snapshotVersion.incrementAndGet();
                     publishFreshSnapshots();
                     if (eventBroadcaster != null) {
@@ -247,7 +275,8 @@ public class SimulationRunner implements InitializingBean, DisposableBean {
                                 lifecycleState.name()
                         );
                     }
-                    cmd.markCompleted("Advanced exactly 1 month to Y" + engine.getTimeline().getYear() + " M" + engine.getTimeline().getMonth(),
+                    if (completed) announceSimulationComplete();
+                    cmd.markCompleted(completed ? "Simulation complete after 300 years" : "Advanced exactly 1 month to Y" + engine.getTimeline().getYear() + " M" + engine.getTimeline().getMonth(),
                             Map.of("year", engine.getTimeline().getYear(), "month", engine.getTimeline().getMonth()));
                 }
                 case STEP_YEAR -> {
@@ -256,9 +285,18 @@ public class SimulationRunner implements InitializingBean, DisposableBean {
                         return;
                     }
                     int monthsAdvanced = 0;
+                    boolean completed = false;
                     for (int m = 0; m < 12; m++) {
+                        if (markCompletedAtYearLimit()) {
+                            completed = true;
+                            break;
+                        }
                         engine.processMonthlyTick();
                         monthsAdvanced++;
+                        if (markCompletedAtYearLimit()) {
+                            completed = true;
+                            break;
+                        }
                         if (engine.isHumanExtinct() && engine.getConfig().getExtinctionPolicy().isStopOnExtinction()) {
                             transitionState(SimulationLifecycleState.HUMAN_EXTINCT);
                             break;
@@ -273,7 +311,8 @@ public class SimulationRunner implements InitializingBean, DisposableBean {
                                 lifecycleState.name()
                         );
                     }
-                    cmd.markCompleted("Advanced " + monthsAdvanced + " months to Y" + engine.getTimeline().getYear() + " M" + engine.getTimeline().getMonth(),
+                    if (completed) announceSimulationComplete();
+                    cmd.markCompleted(completed ? "Simulation complete after 300 years" : "Advanced " + monthsAdvanced + " months to Y" + engine.getTimeline().getYear() + " M" + engine.getTimeline().getMonth(),
                             Map.of("monthsAdvanced", monthsAdvanced, "year", engine.getTimeline().getYear(), "month", engine.getTimeline().getMonth()));
                 }
                 case SET_SPEED -> {
@@ -311,12 +350,14 @@ public class SimulationRunner implements InitializingBean, DisposableBean {
                     this.engine.stop();
                     this.engine = loaded;
                     this.lifecycleState = SimulationLifecycleState.PAUSED;
+                    boolean completed = markCompletedAtYearLimit();
                     long v = snapshotVersion.incrementAndGet();
                     publishFreshSnapshots();
                     if (eventBroadcaster != null) {
                         eventBroadcaster.broadcastSnapshotUpdated(worldId, v);
                         eventBroadcaster.broadcastStatusChanged(worldId, "LOADING", lifecycleState.name());
                     }
+                    if (completed) announceSimulationComplete();
                     cmd.markCompleted("World successfully loaded from " + saveId, Map.of("year", engine.getTimeline().getYear(), "month", engine.getTimeline().getMonth(), "worldId", worldId));
                 }
             }
@@ -333,6 +374,20 @@ public class SimulationRunner implements InitializingBean, DisposableBean {
         }
         if (eventBroadcaster != null && old != newState) {
             eventBroadcaster.broadcastStatusChanged(worldId, old.name(), newState.name());
+        }
+    }
+
+    private boolean markCompletedAtYearLimit() {
+        if (engine == null || engine.getTimeline().getTotalElapsedMonths() < MAX_SIMULATION_MONTHS) return false;
+        if (lifecycleState != SimulationLifecycleState.COMPLETED) {
+            transitionState(SimulationLifecycleState.COMPLETED);
+        }
+        return true;
+    }
+
+    private void announceSimulationComplete() {
+        if (eventBroadcaster != null) {
+            eventBroadcaster.broadcastMajorEvent(worldId, "SIMULATION_COMPLETE", "Simulation complete after 300 years.");
         }
     }
 

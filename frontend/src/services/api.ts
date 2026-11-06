@@ -100,7 +100,7 @@ async function waitForLifecycleState(target: 'PAUSED' | 'RUNNING', command: Comm
   while (Date.now() < deadline) {
     const status = await fetchSimulationStatus();
     if (status.lifecycleState === target) return command;
-    if (status.lifecycleState === 'ERROR' || status.lifecycleState === 'STOPPED') {
+    if (status.lifecycleState === 'ERROR' || status.lifecycleState === 'STOPPED' || status.lifecycleState === 'COMPLETED') {
       throw new Error(`Simulation is ${status.lifecycleState.toLowerCase()}; cannot ${target === 'PAUSED' ? 'pause' : 'resume'}.`);
     }
     await new Promise((resolve) => setTimeout(resolve, 100));

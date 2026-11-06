@@ -6,6 +6,7 @@ package civsim.model;
  * - RUNNING: Automatic monthly simulation loop actively executing.
  * - PAUSED: Simulation time paused; runner continues processing commands and queries.
  * - HUMAN_EXTINCT: All living human population has reached zero.
+ * - COMPLETED: The configured simulation year limit has been reached.
  * - STOPPED: Simulation execution explicitly halted or terminated.
  * - ERROR: Unrecoverable simulation tick failure; safe diagnostic state.
  */
@@ -14,6 +15,7 @@ public enum SimulationLifecycleState {
     RUNNING,
     PAUSED,
     HUMAN_EXTINCT,
+    COMPLETED,
     STOPPED,
     ERROR;
 

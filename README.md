@@ -16,6 +16,7 @@
 
 - [Overview](#overview)
 - [Key Features](#key-features)
+- [Screenshots](#screenshots)
 - [System Architecture](#system-architecture)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
@@ -33,6 +34,8 @@
 CivSim simulates the rise, evolution, and conflicts of civilizations across centuries. Worlds are seeded and strictly deterministic: identical random seeds generate identical demographic trajectories, economic trade flows, and historical milestones.
 
 The simulation transitions from a **Mundane Era** focused on survival, agriculture, resource supply chains, and civic governance into an **Awakening Era** where supernatural forces, martial orders, ancient monster lairs, and aetheric anomalies emerge across the landscape.
+
+Each new world begins from seed **42** with two founding settlements and a population of 50. The simulation opens paused at Year 1, Month 1, and completes after 300 years (3,600 monthly ticks). The map opens at 1.95× zoom and returns to that view after a refresh.
 
 ---
 
@@ -57,6 +60,16 @@ The simulation transitions from a **Mundane Era** focused on survival, agricultu
 ### 4. Live Events & Historical Records
 - **Live Activity**: Browse simulation events as they occur.
 - **Settlement History**: Inspect a settlement's recorded population and resource trends without rewinding the active simulation.
+
+---
+
+## Screenshots
+
+### World Atlas
+
+The illustrated atlas serves as the primary geography layer; settlements, roads, territories, and entities are rendered above it. The startup camera is centered at 1.95× zoom.
+
+![CivSim world atlas at startup, showing the founding settlements](docs/screenshots/01-world-map.png)
 
 ---
 
@@ -113,7 +126,7 @@ CivSim uses a decoupled architecture designed for thread-safe execution, high pe
 
 ### Option 1: Quick Launch (All-in-One Application)
 
-The compiled frontend is bundled with the backend application. A single command launches the web server and simulation engine together:
+The compiled frontend is bundled with the backend application. `npm start` launches the web server and simulation engine together. If the backend has not been compiled yet, the launcher builds it first.
 
 #### Windows:
 ```powershell
@@ -125,6 +138,7 @@ npm start
 #### Manual Launch:
 ```powershell
 cd backend
+node build.js
 java -cp "bin;resources;lib/*" civsim.web.CivSimWebApplication
 ```
 
@@ -161,13 +175,14 @@ Open your browser at:
 | :--- | :--- |
 | **Pan Map** | Click and drag on the map canvas |
 | **Zoom In / Out** | Mouse wheel (anchored to cursor position) or `+` / `-` keys |
-| **Reset View** | Click **Reset View** or press `0` to fit the world |
+| **Reset View** | Click **Reset Camera** or press `0` to return to the centered 1.95× startup view |
 | **Inspect Entity** | Click on any settlement, monster lair, anomaly, or expedition |
 | **Minimap Navigation** | Click or drag on the radar minimap |
 | **Global Search** | Type in the top search bar to center on any person, town, or faction |
-| **Simulation Playback** | Play / Pause (`Space`), Step 1 Month, Step 1 Year via top controls |
+| **Simulation Playback** | Play / Pause and Step 1 Month / 1 Year via top controls |
 | **Speed Adjustment** | Select between `0.5x`, `1.0x`, `2.0x`, `5.0x`, or `10.0x` |
 | **Toggle Overlays** | Use the layer control dock to toggle roads, danger zones, and labels |
+| **Map Scrolling** | Drag the right-side vertical scroller or use its arrow/page keys; drag the map horizontally |
 | **Dismiss Drawer** | Press `Escape` or click the close button |
 
 ---
@@ -184,6 +199,8 @@ The backend exposes a standardized REST API along with real-time SSE event strea
 - `POST /api/simulation/step/year` — Step forward by 1 calendar year (12 months).
 - `POST /api/simulation/speed` — Set playback rate.
 
+The simulation completes after 300 years (3,600 monthly ticks). The runner enters `COMPLETED` and rejects further resume or step commands.
+
 ### World & Spatial Data
 - `GET  /api/world/summary` — Global demographics, total wealth, and era status.
 - `GET  /api/world/map` — 2D spatial coordinate snapshot of all visible world entities.
@@ -195,7 +212,7 @@ The backend exposes a standardized REST API along with real-time SSE event strea
 - `GET  /api/people/{id}` — Individual biography, family lineage, traits, and combat stats.
 
 ### Real-Time Streaming
-- `GET  /api/events/live` — Server-Sent Events stream for live tick updates and world notifications.
+- `GET  /api/events/stream` — Server-Sent Events stream for live tick updates and world notifications.
 
 ---
 
@@ -203,7 +220,7 @@ The backend exposes a standardized REST API along with real-time SSE event strea
 
 ```text
 CivSim/
-├── README.md                    # Project documentation
+├── README.md                    # Project documentation and visual walkthrough
 ├── package.json                 # Root workspace script runner (npm start, npm run dev, npm test)
 ├── run.bat                      # 1-click Windows root launcher
 ├── run.ps1                      # 1-click PowerShell root launcher
@@ -223,12 +240,13 @@ CivSim/
 ├── frontend/                    # Modern React 18 + TypeScript Strategy Game Interface
 │   ├── src/                     # React components, living world map, HUD, store, and API client
 │   ├── public/                  # Static web assets & Map 1 SVG atlas
-│   ├── dist/                    # Production build distribution
 │   ├── package.json             # Frontend dependencies & npm scripts
 │   ├── vite.config.ts           # Vite proxy & build configuration
 │   ├── tailwind.config.js       # Strategy game aesthetic themes
 │   └── tsconfig.json            # Strict TypeScript configuration
 │
+├── docs/
+│   └── screenshots/             # Interface screenshot assets
 ├── saves/                       # Checkpoint saves and alternate timeline branches
 └── scratch/                     # Ad-hoc development scripts & experimental prototypes
 ```

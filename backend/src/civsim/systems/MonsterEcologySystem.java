@@ -1073,6 +1073,10 @@ public class MonsterEcologySystem {
             MonsterLair originLair = lairs.get(monster.getOriginLairId());
             if (originLair != null) {
                 originLair.removeMonster(monster.getMonsterId());
+                if (originLair.getLivingMonsterCount() == 0) {
+                    // Empty lairs no longer represent a living map entity.
+                    lairs.remove(originLair.getLairId(), originLair);
+                }
             }
         }
         boundSet(processedDeathEventIds, 1000);

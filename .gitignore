@@ -71,6 +71,7 @@ scratch/
 gen_map.py
 **/gen_map.py
 /mie_expanded_world_map.svg
+/mie_expanded_world_map2.svg
 !frontend/public/mie_expanded_world_map.svg
 cdp_screenshot.js
 test_and_screenshot.*
@@ -78,12 +79,12 @@ screenshot*.png
 *.screenshot.png
 *.png.tmp
 *.svg.tmp
+/svg images
 
 ### Non-Project Documentation, Audits & Handoffs ###
 # Ignore internal audit reports, handoff documents, and verification notes
 FINAL_INTEGRATION_AUDIT.md
 HANDOFF_VALIDATION_REPORT.md
-PROJECT_HANDOFF.md
 RC_BLOCKER_VERIFICATION.md
 RELEASE_CANDIDATE_REPORT.md
 MAP_FOUNDATION_ALIGNMENT_AUDIT.md
@@ -97,6 +98,10 @@ MAP_FOUNDATION_ALIGNMENT_AUDIT.md
 *_verification.md
 *_CHECKLIST.md
 *_checklist.md
+PROJECT_HANDOFF.md
+project_handoff.md
+**/PROJECT_HANDOFF.md
+**/project_handoff.md
 
 # Ignore all loose markdown documents across workspace except project READMEs
 *.md

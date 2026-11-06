@@ -125,17 +125,19 @@ export function getFitCamera(
   viewportWidth: number,
   viewportHeight: number,
   bounds: WorldBounds = DEFAULT_WORLD_BOUNDS,
-  padding: number = 40
+  padding: number = 40,
+  zoom: number = 1.0
 ): CameraState {
   const baseScale = calculateBaseScale(viewportWidth, viewportHeight, bounds, padding);
-  const worldPixelW = bounds.width * baseScale;
-  const worldPixelH = bounds.height * baseScale;
+  const safeZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+  const worldPixelW = bounds.width * baseScale * safeZoom;
+  const worldPixelH = bounds.height * baseScale * safeZoom;
   const panX = (viewportWidth - worldPixelW) / 2;
   const panY = (viewportHeight - worldPixelH) / 2;
   return {
     panX,
     panY,
-    zoom: 1.0,
+    zoom: safeZoom,
   };
 }
 

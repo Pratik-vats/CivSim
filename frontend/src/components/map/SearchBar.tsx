@@ -78,7 +78,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onCenterEntity }) => {
   };
 
   return (
-    <div ref={containerRef} className="relative w-64 md:w-80 select-none">
+    <div ref={containerRef} className="mie-search relative w-64 md:w-80 select-none">
       <div className="relative flex items-center">
         <Search className="w-3.5 h-3.5 absolute left-3 text-slate-400 pointer-events-none" />
         <input
@@ -90,7 +90,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onCenterEntity }) => {
           }}
           onFocus={() => setIsOpen(true)}
           placeholder="Search settlements, lairs, anomalies..."
-          className="w-full bg-slate-900/90 backdrop-blur border border-slate-700/80 rounded-lg pl-8 pr-8 py-1.5 text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:border-cyan-500 shadow-md font-sans"
+          className="mie-search-input w-full bg-slate-900/90 backdrop-blur border border-slate-700/80 rounded-lg pl-8 pr-8 py-1.5 text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:border-cyan-500 shadow-md font-sans"
         />
         {query && (
           <button

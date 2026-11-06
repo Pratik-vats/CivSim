@@ -251,6 +251,7 @@ public final class SnapshotBuilder {
 
         List<MapLairDto> lairs = new ArrayList<>();
         for (MonsterLair lair : engine.getMonsterEcologySystem().getAllLairs()) {
+            if (lair.getLivingMonsterCount() <= 0) continue;
             lairs.add(new MapLairDto(
                     lair.getLairId(),
                     lair.getSourceAnomalyId(),

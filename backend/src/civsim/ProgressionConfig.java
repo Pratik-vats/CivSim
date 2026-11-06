@@ -234,15 +234,17 @@ public class ProgressionConfig {
      */
     public static Map<Integer, TierTransitionRule> createDefaultTransitionRules() {
         Map<Integer, TierTransitionRule> rules = new HashMap<>();
-        rules.put(1, new TierTransitionRule(1, 2, true, 25.0, 25.0, 22.0, 25.0, 10.0, 0.90, 3, 0.10));
-        rules.put(2, new TierTransitionRule(2, 3, true, 40.0, 32.0, 28.0, 60.0, 35.0, 0.80, 3, 0.10));
-        rules.put(3, new TierTransitionRule(3, 4, true, 55.0, 40.0, 34.0, 120.0, 80.0, 0.68, 3, 0.10));
-        rules.put(4, new TierTransitionRule(4, 5, true, 70.0, 48.0, 40.0, 220.0, 150.0, 0.55, 6, 0.20));
-        rules.put(5, new TierTransitionRule(5, 6, true, 78.0, 56.0, 46.0, 360.0, 260.0, 0.40, 6, 0.20));
-        rules.put(6, new TierTransitionRule(6, 7, true, 84.0, 64.0, 52.0, 550.0, 410.0, 0.28, 6, 0.20));
-        rules.put(7, new TierTransitionRule(7, 8, true, 90.0, 72.0, 58.0, 800.0, 620.0, 0.18, 12, 0.30));
-        rules.put(8, new TierTransitionRule(8, 9, true, 95.0, 82.0, 65.0, 1100.0, 900.0, 0.10, 12, 0.30));
-        rules.put(9, new TierTransitionRule(9, 10, true, 98.0, 90.0, 72.0, 1500.0, 1300.0, 0.05, 12, 0.30));
+        // These are intentionally reachable on a human, annual-training timescale. The old
+        // T6→T7 through T9→T10 thresholds required centuries of training from one person.
+        rules.put(1, new TierTransitionRule(1, 2, true, 20.0, 12.0, 11.0, 12.0, 5.0, 0.95, 3, 0.05));
+        rules.put(2, new TierTransitionRule(2, 3, true, 25.0, 15.0, 13.0, 22.0, 11.0, 0.90, 2, 0.05));
+        rules.put(3, new TierTransitionRule(3, 4, true, 30.0, 18.0, 15.0, 35.0, 18.0, 0.82, 2, 0.05));
+        rules.put(4, new TierTransitionRule(4, 5, true, 36.0, 21.0, 18.0, 50.0, 25.0, 0.72, 2, 0.05));
+        rules.put(5, new TierTransitionRule(5, 6, true, 42.0, 24.0, 20.0, 65.0, 33.0, 0.60, 2, 0.05));
+        rules.put(6, new TierTransitionRule(6, 7, true, 62.0, 24.0, 21.0, 85.0, 42.0, 0.48, 3, 0.05));
+        rules.put(7, new TierTransitionRule(7, 8, true, 70.0, 26.0, 23.0, 105.0, 52.0, 0.38, 3, 0.05));
+        rules.put(8, new TierTransitionRule(8, 9, true, 78.0, 28.0, 25.0, 125.0, 62.0, 0.28, 3, 0.05));
+        rules.put(9, new TierTransitionRule(9, 10, true, 84.0, 30.0, 27.0, 150.0, 75.0, 0.20, 3, 0.05));
         return rules;
     }
 

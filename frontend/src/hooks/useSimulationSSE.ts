@@ -1,31 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMapStore } from '../store/useMapStore';
 
 export interface SSEState {
   connected: boolean;
-  lastTick: number | null;
-  lastYear: number | null;
-  lastMonth: number | null;
-  notification: string | null;
 }
 
 export function useSimulationSSE() {
   const queryClient = useQueryClient();
-  const setIsAwakenedBackend = useMapStore((s) => s.setIsAwakenedBackend);
-  const selectedEntity = useMapStore((s) => s.selectedEntity);
+  const selectedEntityRef = useRef(useMapStore.getState().selectedEntity);
 
   const [state, setState] = useState<SSEState>({
     connected: false,
-    lastTick: null,
-    lastYear: null,
-    lastMonth: null,
-    notification: null,
   });
 
   useEffect(() => {
+    const unsubscribe = useMapStore.subscribe((storeState) => {
+      selectedEntityRef.current = storeState.selectedEntity;
+    });
     let eventSource: EventSource | null = null;
-    let reconnectTimeout: any = null;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 
     function connect() {
       eventSource = new EventSource('/api/events/stream');
@@ -34,51 +28,20 @@ export function useSimulationSSE() {
         setState((prev) => ({ ...prev, connected: true }));
       };
 
-      eventSource.addEventListener('tick-completed', (e: MessageEvent) => {
-        try {
-          const data = JSON.parse(e.data);
-          setState((prev) => ({
-            ...prev,
-            lastTick: data.tickId,
-            lastYear: data.year,
-            lastMonth: data.month,
-          }));
+      eventSource.addEventListener('tick-completed', () => {
+        queryClient.invalidateQueries({ queryKey: ['world-summary'] });
+        queryClient.invalidateQueries({ queryKey: ['world-map'] });
+        queryClient.invalidateQueries({ queryKey: ['simulation-status'] });
 
-          // Invalidate relevant server-state queries
-          queryClient.invalidateQueries({ queryKey: ['world-summary'] });
-          queryClient.invalidateQueries({ queryKey: ['world-map'] });
-          queryClient.invalidateQueries({ queryKey: ['simulation-status'] });
-
-          if (selectedEntity && selectedEntity.type === 'SETTLEMENT') {
-            queryClient.invalidateQueries({
-              queryKey: ['settlement-detail', selectedEntity.id],
-            });
-          }
-        } catch (err) {
-          console.error('Failed to parse tick-completed SSE:', err);
+        const selectedEntity = selectedEntityRef.current;
+        if (selectedEntity?.type === 'SETTLEMENT') {
+          queryClient.invalidateQueries({ queryKey: ['settlement-detail', selectedEntity.id] });
         }
       });
 
-      eventSource.addEventListener('simulation-status-changed', (e: MessageEvent) => {
-        try {
-          const data = JSON.parse(e.data);
-          queryClient.invalidateQueries({ queryKey: ['simulation-status'] });
-          queryClient.invalidateQueries({ queryKey: ['world-summary'] });
-        } catch (err) {
-          console.error('Failed to parse status SSE:', err);
-        }
-      });
-
-      eventSource.addEventListener('major-world-event', (e: MessageEvent) => {
-        try {
-          const data = JSON.parse(e.data);
-          setState((prev) => ({
-            ...prev,
-            notification: `[${data.type}] ${data.summary}`,
-          }));
-        } catch (err) {
-          console.error('Failed to parse major-world-event SSE:', err);
-        }
+      eventSource.addEventListener('simulation-status-changed', () => {
+        queryClient.invalidateQueries({ queryKey: ['simulation-status'] });
+        queryClient.invalidateQueries({ queryKey: ['world-summary'] });
       });
 
       eventSource.addEventListener('world-snapshot-updated', () => {
@@ -110,8 +73,9 @@ export function useSimulationSSE() {
       if (reconnectTimeout) {
         clearTimeout(reconnectTimeout);
       }
+      unsubscribe();
     };
-  }, [queryClient, selectedEntity, setIsAwakenedBackend]);
+  }, [queryClient]);
 
   return state;
 }

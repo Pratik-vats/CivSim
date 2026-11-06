@@ -71,6 +71,7 @@ export type NavigationModule =
   | 'battles'
   | 'tides'
   | 'expeditions'
+  | 'anomalies'
   | 'feuds';
 
 interface MapState {
@@ -106,7 +107,6 @@ interface MapState {
   activeDrawerTab: DrawerTab;
 
   themeMode: 'AUTO' | 'MUNDANE' | 'AWAKENING';
-  isAwakenedBackend: boolean;
 
   showMinimap: boolean;
   showLegend: boolean;
@@ -164,7 +164,6 @@ interface MapState {
   setDrawerOpen: (open: boolean) => void;
   setActiveDrawerTab: (tab: DrawerTab) => void;
   setThemeMode: (mode: 'AUTO' | 'MUNDANE' | 'AWAKENING') => void;
-  setIsAwakenedBackend: (awakened: boolean) => void;
   toggleMinimap: () => void;
   toggleLegend: () => void;
   toggleFilters: () => void;
@@ -230,7 +229,6 @@ export const useMapStore = create<MapState>((set) => ({
   activeDrawerTab: 'OVERVIEW',
 
   themeMode: 'AUTO',
-  isAwakenedBackend: false,
 
   showMinimap: true,
   showLegend: false,
@@ -325,8 +323,6 @@ export const useMapStore = create<MapState>((set) => ({
   setActiveDrawerTab: (activeDrawerTab) => set({ activeDrawerTab }),
 
   setThemeMode: (themeMode) => set({ themeMode }),
-
-  setIsAwakenedBackend: (isAwakenedBackend) => set({ isAwakenedBackend }),
 
   toggleMinimap: () => set((s) => ({ showMinimap: !s.showMinimap })),
   toggleLegend: () => set((s) => ({ showLegend: !s.showLegend })),

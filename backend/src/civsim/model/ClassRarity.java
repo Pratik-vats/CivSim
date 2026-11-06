@@ -16,8 +16,8 @@ public enum ClassRarity {
     COMMON("Common", 0.40, 1, 5),
     UNCOMMON("Uncommon", 0.25, 1, 6),
     RARE("Rare", 0.18, 1, 7),
-    EPIC("Epic", 0.10, 1, 8),
-    LEGENDARY("Legendary", 0.05, 1, 8),
+    EPIC("Epic", 0.10, 1, 9),
+    LEGENDARY("Legendary", 0.05, 1, 9),
     MYTHIC("Mythic", 0.02, 1, 10);
 
     private final String displayName;

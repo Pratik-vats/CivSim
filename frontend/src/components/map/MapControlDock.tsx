@@ -47,10 +47,10 @@ export const MapControlDock: React.FC<MapControlDockProps> = ({
   const camera = useMapStore((s) => s.camera);
 
   return (
-    <div className="absolute bottom-6 right-6 z-10 flex flex-col items-end gap-2">
+    <div className="mie-map-control-stack absolute bottom-6 right-6 z-10 flex flex-col items-end gap-2">
       {/* Overlays Popover Panel */}
       {overlaysOpen && (
-        <div className="w-56 p-3 rounded-xl bg-slate-950/95 backdrop-blur-md border border-slate-700 shadow-2xl text-xs space-y-2 text-slate-200 animate-in fade-in slide-in-from-bottom-2 duration-150">
+        <div className="mie-map-popover w-56 p-3 rounded-xl bg-slate-950/95 backdrop-blur-md border border-slate-700 shadow-2xl text-xs space-y-2 text-slate-200 animate-in fade-in slide-in-from-bottom-2 duration-150">
           <div className="flex items-center justify-between pb-1.5 border-b border-slate-800 font-serif font-bold text-amber-400">
             <span className="flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Dynamic Overlays
@@ -123,7 +123,7 @@ export const MapControlDock: React.FC<MapControlDockProps> = ({
 
       {/* Layers Popover Panel */}
       {layersOpen && (
-        <div className="w-56 p-3 rounded-xl bg-slate-950/95 backdrop-blur-md border border-slate-700 shadow-2xl text-xs space-y-2 text-slate-200 animate-in fade-in slide-in-from-bottom-2 duration-150">
+        <div className="mie-map-popover w-56 p-3 rounded-xl bg-slate-950/95 backdrop-blur-md border border-slate-700 shadow-2xl text-xs space-y-2 text-slate-200 animate-in fade-in slide-in-from-bottom-2 duration-150">
           <div className="flex items-center justify-between pb-1.5 border-b border-slate-800 font-serif font-bold text-amber-400">
             <span className="flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-amber-400" /> Map Cartography
@@ -205,7 +205,7 @@ export const MapControlDock: React.FC<MapControlDockProps> = ({
       )}
 
       {/* Floating Dock Bar */}
-      <div className="flex items-center gap-1.5 p-1.5 rounded-xl bg-slate-950/85 backdrop-blur-md border border-slate-700/80 shadow-2xl text-slate-200">
+      <div className="mie-map-dock flex items-center gap-1.5 p-1.5 rounded-xl bg-slate-950/85 backdrop-blur-md border border-slate-700/80 shadow-2xl text-slate-200">
         <button
           onClick={onZoomIn}
           className="p-2 hover:bg-slate-800/80 active:bg-slate-700 rounded-lg transition text-slate-200 hover:text-white"

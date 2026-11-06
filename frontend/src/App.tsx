@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   fetchWorldSummary,
@@ -52,6 +52,8 @@ export const App: React.FC = () => {
   const setActiveModule = useMapStore((s) => s.setActiveModule);
 
   const [currentModule, setCurrentModule] = useState<string>('world-map');
+  const [dismissedCompleteWorldId, setDismissedCompleteWorldId] = useState<string | null>(null);
+  const mapViewportRef = useRef<HTMLDivElement | null>(null);
 
   // Synchronize store and local state
   useEffect(() => {
@@ -162,7 +164,7 @@ export const App: React.FC = () => {
 
   return (
     <div
-      className={`h-screen w-screen flex flex-col overflow-hidden font-sans transition-colors duration-500 ${
+      className={`mie-app h-screen w-screen flex flex-col overflow-hidden font-sans transition-colors duration-500 ${
         isAwakened ? 'bg-[#090d16] text-slate-100' : 'bg-[#151310] text-[#f2e8dc]'
       }`}
     >
@@ -184,21 +186,23 @@ export const App: React.FC = () => {
         />
 
         {/* Dynamic Center Workspace */}
-        <main className="flex-1 relative overflow-hidden flex flex-col">
+        <main className="mie-content-stage flex-1 relative overflow-hidden flex flex-col">
           {currentModule === 'world-map' && (
-            <div className="flex-1 flex flex-col relative overflow-hidden">
-              <div className="flex-1 relative overflow-hidden">
+            <div className="mie-map-stage flex-1 flex flex-col relative overflow-hidden">
+              <div ref={mapViewportRef} className="flex-1 relative overflow-hidden">
                 {/* Floating Search Bar (Top Left over map) */}
                 <div className="absolute top-4 left-4 z-10">
                   <SearchBar
                     onCenterEntity={(wx, wy) => {
-                      const viewW = window.innerWidth - 192;
-                      const viewH = window.innerHeight - 120;
+                      const rect = mapViewportRef.current?.getBoundingClientRect();
+                      const viewW = rect?.width ?? window.innerWidth - 72;
+                      const viewH = rect?.height ?? window.innerHeight - 112;
                       const baseScale = calculateBaseScale(viewW, viewH, DEFAULT_WORLD_BOUNDS);
                       const point = projectWorldToMap(wx, wy);
-                      const newPanX = viewW / 2 - point.x * baseScale;
-                      const newPanY = viewH / 2 - point.y * baseScale;
-                      setCamera({ panX: newPanX, panY: newPanY, zoom: 1.5 });
+                      const zoom = 1.5;
+                      const newPanX = viewW / 2 - point.x * baseScale * zoom;
+                      const newPanY = viewH / 2 - point.y * baseScale * zoom;
+                      setCamera({ panX: newPanX, panY: newPanY, zoom });
                     }}
                   />
                 </div>
@@ -256,6 +260,18 @@ export const App: React.FC = () => {
       <ExpeditionDetailModal />
       <AnomalyDetailModal />
       <FeudDetailModal />
+
+      {simStatus?.lifecycleState === 'COMPLETED' && dismissedCompleteWorldId !== simStatus.worldId && (
+        <div className="mie-completion-backdrop">
+          <section className="mie-completion-dialog" role="alertdialog" aria-modal="true" aria-labelledby="simulation-complete-title">
+            <div className="mie-completion-seal" aria-hidden="true">✓</div>
+            <p className="mie-completion-eyebrow">YEAR 300 · FINAL CHRONICLE</p>
+            <h2 id="simulation-complete-title">Simulation complete</h2>
+            <p className="mie-completion-copy">The 300-year simulation limit has been reached. This world is now paused for you to explore.</p>
+            <button type="button" onClick={() => setDismissedCompleteWorldId(simStatus.worldId)}>Continue exploring</button>
+          </section>
+        </div>
+      )}
 
     </div>
   );
