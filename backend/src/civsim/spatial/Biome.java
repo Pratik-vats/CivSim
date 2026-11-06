@@ -70,10 +70,13 @@ public enum Biome {
         return tradeMultiplier;
     }
 
-    /**
-     * Determines the biome for a given 2D coordinate on a standard [0, 100] world grid.
-     */
+    /** Determines the simulation biome at native Map 1 world coordinates. */
     public static Biome determineBiomeAt(double x, double y) {
+        return WorldGeography.biomeAt(x, y);
+    }
+
+    /** Legacy [0,100] biome rule retained only for central-region migration. */
+    public static Biome determineLegacyBiomeAt(double x, double y) {
         // Northwest (X <= 42, Y >= 58): Coastal sea & ocean fjords
         if (x <= 42.0 && y >= 58.0) {
             return COASTAL;

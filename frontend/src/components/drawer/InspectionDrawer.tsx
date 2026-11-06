@@ -25,7 +25,6 @@ import {
   Compass,
   Hammer,
   Crown,
-  Clock,
   TrendingUp,
 } from 'lucide-react';
 import {
@@ -50,10 +49,6 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({ mapSnapshot,
   const setDrawerOpen = useMapStore((s) => s.setDrawerOpen);
   const activeTab = useMapStore((s) => s.activeDrawerTab);
   const setActiveTab = useMapStore((s) => s.setActiveDrawerTab);
-  const timeTravelMode = useMapStore((s) => s.timeTravelMode);
-  const historicalResolution = useMapStore((s) => s.historicalResolution);
-  const historicalYear = useMapStore((s) => s.historicalYear);
-  const isHistorical = timeTravelMode === 'HISTORICAL';
 
   // Keyboard Escape to close
   useEffect(() => {
@@ -339,23 +334,6 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({ mapSnapshot,
           <X className="w-4 h-4" />
         </button>
       </div>
-
-      {/* Historical Mode Read-Only Banner */}
-      {isHistorical && (
-        <div className="mt-3 px-3 py-2 rounded-xl bg-amber-950/70 border border-amber-600/60 text-amber-300 text-xs space-y-1">
-          <div className="flex items-center justify-between font-mono font-bold text-[11px]">
-            <span className="flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-amber-400" /> HISTORICAL ARCHIVE (Y{historicalYear})
-            </span>
-            <span className="px-1.5 py-0.5 rounded bg-amber-900/60 border border-amber-600/50 text-[10px]">
-              {historicalResolution || 'AGGREGATED_HISTORICAL_DATA'}
-            </span>
-          </div>
-          <div className="text-[10px] text-amber-400/80">
-            Immutable presentation snapshot. Live actions and mutating commands are disabled.
-          </div>
-        </div>
-      )}
 
       {/* Famine Warning */}
       {(settlementDetail?.inFamine || sMarker?.inFamine) && (
@@ -689,13 +667,13 @@ export const InspectionDrawer: React.FC<InspectionDrawerProps> = ({ mapSnapshot,
                   </div>
                 )}
 
-                <div className="text-slate-400 font-semibold text-[11px] pt-1">Chronicle Annals & Recorded Events</div>
+                <div className="text-slate-400 font-semibold text-[11px] pt-1">Settlement Events</div>
 
                 {eventsLoading && (
-                  <div className="text-slate-400 py-4 text-center font-mono">Loading event chronicles...</div>
+                  <div className="text-slate-400 py-4 text-center font-mono">Loading settlement events...</div>
                 )}
                 {!eventsLoading && (!settlementEvents || settlementEvents.length === 0) && (
-                  <div className="text-slate-500 py-4 text-center">No recent chronicles recorded for this settlement.</div>
+                  <div className="text-slate-500 py-4 text-center">No recent events recorded for this settlement.</div>
                 )}
                 {settlementEvents &&
                   settlementEvents.map((evt) => (

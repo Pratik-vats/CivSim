@@ -4,10 +4,7 @@ import {
   fetchWorldSummary,
   fetchWorldMap,
   fetchSimulationStatus,
-  fetchHistoricalMap,
-  fetchHistoricalSummary,
   fetchWorldOverlays,
-  fetchHistoricalOverlays,
 } from './services/api';
 import { useSimulationSSE } from './hooks/useSimulationSSE';
 import { useMapStore, NavigationModule } from './store/useMapStore';
@@ -15,13 +12,13 @@ import { TopBar } from './components/header/TopBar';
 import { Sidebar } from './components/sidebar/Sidebar';
 import { WorldMapWorkspace } from './components/map/WorldMapWorkspace';
 import { SearchBar } from './components/map/SearchBar';
+import { calculateBaseScale, DEFAULT_WORLD_BOUNDS, projectWorldToMap } from './utils/coordinates';
 import { LayerControl } from './components/map/LayerControl';
 import { FilterPanel } from './components/map/FilterPanel';
 import { MapLegend } from './components/map/MapLegend';
 import { InspectionDrawer } from './components/drawer/InspectionDrawer';
 
 // Phase 3.3 Explorer Modules & Modals
-import { PeopleExplorer } from './components/people/PeopleExplorer';
 import { PersonProfileModal } from './components/people/PersonProfileModal';
 import { FamilyDynastyExplorer } from './components/families/FamilyDynastyExplorer';
 import { FamilyTreeModal } from './components/families/FamilyTreeModal';
@@ -36,7 +33,6 @@ import { ComparisonModal } from './components/comparison/ComparisonModal';
 // Phase 3.4 Modules & Modals
 import { WorldActivityFeed } from './components/activity/WorldActivityFeed';
 import { EventDetailModal } from './components/activity/EventDetailModal';
-import { HistoricalChronicleView } from './components/chronicle/HistoricalChronicleView';
 import { BattleExplorer } from './components/battles/BattleExplorer';
 import { BattleDetailModal } from './components/battles/BattleDetailModal';
 import { MonsterTideTracker } from './components/tides/MonsterTideTracker';
@@ -48,12 +44,6 @@ import { AnomalyDetailModal } from './components/anomalies/AnomalyDetailModal';
 import { BloodFeudLedger } from './components/feuds/BloodFeudLedger';
 import { FeudDetailModal } from './components/feuds/FeudDetailModal';
 
-// Phase 3.5 Time Travel, Persistence & Branching Components
-import { HistoricalTimelineScrubber } from './components/timetravel/HistoricalTimelineScrubber';
-import { HistoricalComparisonModal } from './components/timetravel/HistoricalComparisonModal';
-import { SaveManagerModal } from './components/saves/SaveManagerModal';
-import { BranchManagerModal } from './components/branches/BranchManagerModal';
-import { NewWorldModal } from './components/worlds/NewWorldModal';
 
 import { AlertCircle, RefreshCw } from 'lucide-react';
 
@@ -113,84 +103,16 @@ export const App: React.FC = () => {
     refetchInterval: 1500,
   });
 
-  // Phase 3.5 Historical Queries & Adapters
-  const timeTravelMode = useMapStore((s) => s.timeTravelMode);
-  const historicalYear = useMapStore((s) => s.historicalYear);
-  const historicalMonth = useMapStore((s) => s.historicalMonth);
-  const isHistorical = timeTravelMode === 'HISTORICAL';
-
-  const { data: historicalMapData } = useQuery({
-    queryKey: ['historical-map', historicalYear, historicalMonth],
-    queryFn: () => fetchHistoricalMap(historicalYear!, historicalMonth ?? 0),
-    enabled: isHistorical && historicalYear !== null,
-  });
-
-  const { data: historicalSummaryData } = useQuery({
-    queryKey: ['historical-summary', historicalYear, historicalMonth],
-    queryFn: () => fetchHistoricalSummary(historicalYear!, historicalMonth ?? 0),
-    enabled: isHistorical && historicalYear !== null,
-  });
-
   // Phase 3.6 World Overlays & Dynamic Heatmaps
   const { data: liveOverlays } = useQuery({
     queryKey: ['world-overlays'],
     queryFn: fetchWorldOverlays,
     refetchInterval: 2500,
-    enabled: !isHistorical,
+    enabled: true,
   });
-
-  const { data: historicalOverlays } = useQuery({
-    queryKey: ['historical-overlays', historicalYear, historicalMonth],
-    queryFn: () => fetchHistoricalOverlays(historicalYear!, historicalMonth ?? 0),
-    enabled: isHistorical && historicalYear !== null,
-  });
-
-  const activeOverlays = isHistorical ? historicalOverlays : liveOverlays;
-
-  // Adaptive map snapshot for live or historical visualization
-  const activeMapSnapshot =
-    isHistorical && historicalMapData
-      ? {
-          worldId: historicalMapData.worldId,
-          snapshotVersion: -1,
-          tickId: -1,
-          year: historicalMapData.year,
-          month: historicalMapData.month,
-          width: mapSnapshot?.width || 120,
-          height: mapSnapshot?.height || 120,
-          settlements: historicalMapData.settlements,
-          lairs: historicalMapData.lairs,
-          anomalies: historicalMapData.anomalies,
-          expeditions: historicalMapData.expeditions,
-        }
-      : mapSnapshot;
-
-  // Adaptive summary for live or historical status
-  const activeSummary =
-    isHistorical && historicalSummaryData
-      ? {
-          worldId: historicalSummaryData.worldId,
-          year: historicalSummaryData.year,
-          month: historicalSummaryData.month,
-          totalMonths: historicalSummaryData.year * 12 + historicalSummaryData.month,
-          status: 'HISTORICAL_VIEW',
-          humanPopulation: historicalSummaryData.humanPopulation,
-          livingMalePopulation: Math.round(historicalSummaryData.humanPopulation / 2),
-          livingFemalePopulation: Math.round(historicalSummaryData.humanPopulation / 2),
-          settlementCount: historicalSummaryData.settlementCount,
-          activeOrganizationCount: historicalSummaryData.activeOrganizationCount,
-          awakenedPopulation: historicalSummaryData.awakenedPopulation,
-          livingMonsterCount: historicalSummaryData.livingMonsterCount,
-          activeMonsterLairCount: historicalSummaryData.activeMonsterLairCount,
-          totalFoodStockpile: historicalSummaryData.totalFoodStockpile,
-          totalWoodStockpile: historicalSummaryData.totalWoodStockpile,
-          totalOreStockpile: historicalSummaryData.totalOreStockpile,
-          totalToolsStockpile: historicalSummaryData.totalToolsStockpile,
-          totalCitizenWealth: 0,
-          totalCivicTreasury: 0,
-          currentEra: historicalSummaryData.currentEra,
-        }
-      : summary;
+  const activeOverlays = liveOverlays;
+  const activeMapSnapshot = mapSnapshot;
+  const activeSummary = summary;
 
   const showLayers = useMapStore((s) => s.showLayers);
   const showFilters = useMapStore((s) => s.showFilters);
@@ -270,11 +192,12 @@ export const App: React.FC = () => {
                 <div className="absolute top-4 left-4 z-10">
                   <SearchBar
                     onCenterEntity={(wx, wy) => {
-                      const boundsW = activeMapSnapshot?.width || 120;
-                      const boundsH = activeMapSnapshot?.height || 120;
-                      const baseScale = Math.min((window.innerWidth - 300) / boundsW, (window.innerHeight - 150) / boundsH);
-                      const newPanX = (window.innerWidth - 300) / 2 - wx * baseScale;
-                      const newPanY = (window.innerHeight - 150) / 2 - wy * baseScale;
+                      const viewW = window.innerWidth - 192;
+                      const viewH = window.innerHeight - 120;
+                      const baseScale = calculateBaseScale(viewW, viewH, DEFAULT_WORLD_BOUNDS);
+                      const point = projectWorldToMap(wx, wy);
+                      const newPanX = viewW / 2 - point.x * baseScale;
+                      const newPanY = viewH / 2 - point.y * baseScale;
                       setCamera({ panX: newPanX, panY: newPanY, zoom: 1.5 });
                     }}
                   />
@@ -300,16 +223,9 @@ export const App: React.FC = () => {
                 )}
               </div>
 
-              {/* Bottom Docked Historical Timeline Scrubber */}
-              <HistoricalTimelineScrubber
-                worldId={summary?.worldId}
-                currentLiveYear={summary?.year ?? 0}
-                currentLiveMonth={summary?.month ?? 1}
-              />
             </div>
           )}
 
-          {currentModule === 'people' && <PeopleExplorer />}
           {currentModule === 'families' && <FamilyDynastyExplorer />}
           {currentModule === 'organizations' && <OrganizationExplorer />}
           {currentModule === 'heirlooms' && <HeirloomExplorer />}
@@ -317,7 +233,6 @@ export const App: React.FC = () => {
 
           {/* Phase 3.4 Modules */}
           {currentModule === 'activity' && <WorldActivityFeed />}
-          {currentModule === 'chronicle' && <HistoricalChronicleView />}
           {currentModule === 'battles' && <BattleExplorer />}
           {currentModule === 'tides' && <MonsterTideTracker />}
           {currentModule === 'expeditions' && <ExpeditionExplorer />}
@@ -342,11 +257,6 @@ export const App: React.FC = () => {
       <AnomalyDetailModal />
       <FeudDetailModal />
 
-      {/* Phase 3.5 Time Travel, Save & Branch Modals */}
-      <HistoricalComparisonModal />
-      <SaveManagerModal />
-      <BranchManagerModal />
-      <NewWorldModal />
     </div>
   );
 };

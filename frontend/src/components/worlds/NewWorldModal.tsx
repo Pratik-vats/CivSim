@@ -6,24 +6,19 @@ import {
   X,
   Globe,
   Dices,
-  Sparkles,
-  ShieldAlert,
-  Flame,
   Check,
 } from 'lucide-react';
 
 export const NewWorldModal: React.FC = () => {
   const isOpen = useMapStore((s) => s.newWorldModalOpen);
   const setOpen = useMapStore((s) => s.setNewWorldModalOpen);
-  const setLiveMode = useMapStore((s) => s.setLiveMode);
 
   const queryClient = useQueryClient();
 
   const [worldName, setWorldName] = useState('New Genesis World');
   const [seed, setSeed] = useState<number>(() => Math.floor(Math.random() * 999999) + 1);
-  const [fantasyMode, setFantasyMode] = useState<boolean>(true);
   const [awakeningThreshold, setAwakeningThreshold] = useState<number>(50);
-  const [extinctionPolicy, setExtinctionPolicy] = useState<string>('RESPAWN_NOMADS');
+  const [extinctionPolicy] = useState<string>('STOP_ON_HUMAN_EXTINCTION');
   const [errorText, setErrorText] = useState<string | null>(null);
 
   const randomizeSeed = () => {
@@ -35,12 +30,10 @@ export const NewWorldModal: React.FC = () => {
       createNewWorld({
         worldName: worldName.trim() || 'New Genesis World',
         seed,
-        fantasyMode,
-        awakeningYearThreshold: awakeningThreshold,
-        extinctionRecoveryPolicy: extinctionPolicy,
+        awakeningThreshold,
+        extinctionPolicy,
       }),
     onSuccess: () => {
-      setLiveMode();
       setOpen(false);
       queryClient.invalidateQueries();
     },
@@ -115,31 +108,6 @@ export const NewWorldModal: React.FC = () => {
             <p className="text-[10px] text-slate-500 mt-1 font-mono">
               The exact same seed guarantees reproducible geography, settlements, and monster spawns.
             </p>
-          </div>
-
-          {/* Fantasy Mode Toggle */}
-          <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl flex items-center justify-between">
-            <div className="space-y-0.5">
-              <div className="text-slate-200 font-semibold flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-purple-400" /> Fantasy & Supernatural Systems
-              </div>
-              <div className="text-[11px] text-slate-400">
-                Enables anomaly spawning, awakening progression, monster tides, and legendary heirlooms.
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setFantasyMode(!fantasyMode)}
-              className={`w-12 h-6 rounded-full transition-colors relative flex items-center px-1 ${
-                fantasyMode ? 'bg-cyan-600' : 'bg-slate-800'
-              }`}
-            >
-              <div
-                className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                  fantasyMode ? 'translate-x-6' : 'translate-x-0'
-                }`}
-              />
-            </button>
           </div>
 
           {/* Awakening Year Threshold */}

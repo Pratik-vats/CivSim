@@ -18,6 +18,7 @@ interface MapControlDockProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitWorld: () => void;
+  onFocusCivilization: () => void;
   onResetView: () => void;
   onCenterSelected?: () => void;
   hasSelectedEntity: boolean;
@@ -28,6 +29,7 @@ export const MapControlDock: React.FC<MapControlDockProps> = ({
   onZoomIn,
   onZoomOut,
   onFitWorld,
+  onFocusCivilization,
   onResetView,
   onCenterSelected,
   hasSelectedEntity,
@@ -223,9 +225,13 @@ export const MapControlDock: React.FC<MapControlDockProps> = ({
         <button
           onClick={onFitWorld}
           className="p-2 hover:bg-slate-800/80 active:bg-slate-700 rounded-lg transition text-slate-200 hover:text-white"
-          title="Fit Whole World (0)"
+          title="Fit Entire Continent"
         >
           <Maximize2 className="w-4 h-4" />
+        </button>
+
+        <button onClick={onFocusCivilization} className="p-2 hover:bg-emerald-900/50 rounded-lg transition text-emerald-300" title="Focus Civilization">
+          <Compass className="w-4 h-4" />
         </button>
 
         <button

@@ -422,8 +422,11 @@ public class MonsterEcologySystem {
                 // Roam within species compatible territory
                 double speed = m.getBaseSpeed();
                 double angle = (random != null) ? (random.nextDouble() * 2.0 * Math.PI) : 0.0;
-                double newX = Math.max(0.0, Math.min(100.0, m.getPosX() + Math.cos(angle) * Math.min(speed, 5.0)));
-                double newY = Math.max(0.0, Math.min(100.0, m.getPosY() + Math.sin(angle) * Math.min(speed, 5.0)));
+                double newX = m.getPosX() + Math.cos(angle) * Math.min(speed, 5.0);
+                double newY = m.getPosY() + Math.sin(angle) * Math.min(speed, 5.0);
+                // Migration uses the native atlas domain and must not strand terrestrial monsters
+                // in ocean or outside the world. Rejected steps leave the monster in place.
+                if (!civsim.spatial.WorldGeography.isMonsterLocation(newX, newY)) continue;
                 Biome newBiome = determineBiomeForCoordinates(newX, newY);
                 if (m.getSpeciesDef() != null && m.getSpeciesDef().isCompatibleWithBiome(newBiome)) {
                     m.setPosition(newX, newY);
@@ -1345,10 +1348,7 @@ public class MonsterEcologySystem {
     }
 
     private Biome determineBiomeForCoordinates(double x, double y) {
-        if (x < 40.0 && y < 40.0) return Biome.RIVER_VALLEY;
-        if (x > 60.0 && y > 60.0) return Biome.HIGHLAND_MINE;
-        if (x > 50.0 && y < 40.0) return Biome.COASTAL;
-        return Biome.FOREST;
+        return Biome.determineBiomeAt(x, y);
     }
 
     private String selectPrimarySpeciesForBiome(Biome biome, Random random) {

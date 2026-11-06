@@ -2,8 +2,6 @@ package civsim.web.controller;
 
 import civsim.dto.*;
 import civsim.persistence.WorldPersistenceService;
-import civsim.runner.CommandType;
-import civsim.runner.SimulationCommand;
 import civsim.runner.SimulationRunner;
 import civsim.runner.SnapshotBuilder;
 import org.springframework.http.HttpStatus;
@@ -11,21 +9,23 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 /**
- * World read model and persistence endpoints.
+ * Read-only live world data endpoints.
  */
 @RestController
 @RequestMapping("/api/world")
 public class WorldController {
 
     private final SimulationRunner runner;
-    private final WorldPersistenceService persistenceService;
-
-    public WorldController(SimulationRunner runner, WorldPersistenceService persistenceService) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public WorldController(SimulationRunner runner) {
         this.runner = runner;
-        this.persistenceService = persistenceService;
+    }
+
+    /** Retained for source compatibility with the in-repository integration harness. */
+    public WorldController(SimulationRunner runner, WorldPersistenceService ignoredPersistenceService) {
+        this(runner);
     }
 
     @GetMapping({"/snapshot", "/tick"})
@@ -61,24 +61,5 @@ public class WorldController {
         }
     }
 
-    @PostMapping("/save")
-    public ResponseEntity<CommandStatusDto> saveWorld(@RequestBody(required = false) Map<String, String> payload) {
-        String customId = (payload != null) ? payload.get("saveId") : null;
-        SimulationCommand cmd = new SimulationCommand(CommandType.SAVE_WORLD, customId);
-        runner.submitCommand(cmd);
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(cmd.toDto());
-    }
-
-    @PostMapping("/load/{saveId}")
-    public ResponseEntity<CommandStatusDto> loadWorld(@PathVariable("saveId") String saveId) {
-        SimulationCommand cmd = new SimulationCommand(CommandType.LOAD_WORLD, saveId);
-        runner.submitCommand(cmd);
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(cmd.toDto());
-    }
-
-    @GetMapping("/saves")
-    public ResponseEntity<List<WorldSaveSummaryDto>> listSaves() {
-        return ResponseEntity.ok(persistenceService.listSaves());
-    }
 }
 

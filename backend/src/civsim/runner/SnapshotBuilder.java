@@ -82,7 +82,7 @@ public final class SnapshotBuilder {
         // Anomalies (only publicly observable or discovered)
         List<AnomalyMarkerDto> anomalyMarkers = new ArrayList<>();
         for (WorldAnomaly anom : engine.getAnomalySystem().getAllAnomalies()) {
-            if (!anom.isPubliclyObservable()) {
+            if (!anom.isPubliclyObservable() || anom.getRemainingQuantity() <= 0.0) {
                 continue;
             }
             anomalyMarkers.add(new AnomalyMarkerDto(
@@ -269,7 +269,7 @@ public final class SnapshotBuilder {
 
         List<MapAnomalyDto> anomalies = new ArrayList<>();
         for (WorldAnomaly anom : engine.getAnomalySystem().getAllAnomalies()) {
-            if (!anom.isPubliclyObservable()) {
+            if (!anom.isPubliclyObservable() || anom.getRemainingQuantity() <= 0.0) {
                 continue;
             }
             anomalies.add(new MapAnomalyDto(
@@ -307,8 +307,8 @@ public final class SnapshotBuilder {
                 totalMonths,
                 year,
                 month,
-                120.0,
-                120.0,
+                    civsim.spatial.WorldGeography.WIDTH,
+                    civsim.spatial.WorldGeography.HEIGHT,
                 settlements,
                 lairs,
                 anomalies,
@@ -2118,8 +2118,8 @@ public final class SnapshotBuilder {
 
     public static HistoricalMapSnapshotDto buildHistoricalMapSnapshot(SimulationEngine engine, int targetYear, int targetMonth, String worldId) {
         long targetTotalMonths = (long) targetYear * 12 + targetMonth;
-        double width = 120.0;
-        double height = 120.0;
+        double width = civsim.spatial.WorldGeography.WIDTH;
+        double height = civsim.spatial.WorldGeography.HEIGHT;
 
         AnnualReport reportForYear = null;
         for (AnnualReport ar : engine.getAnnualReports()) {
@@ -2204,7 +2204,12 @@ public final class SnapshotBuilder {
         if (engine.getAnomalySystem() != null) {
             for (WorldAnomaly anom : engine.getAnomalySystem().getAllAnomalies()) {
                 int appearanceYear = anom.getPublicAppearanceMonth() / 12;
-                if (anom.isPubliclyObservable() && appearanceYear <= targetYear) {
+                // Historical anomaly quantities are not stored at month resolution yet. Only
+                // use live quantities for the current selected month; never project today's
+                // remaining reserve into an earlier historical view.
+                boolean currentSelectedMonth = targetTotalMonths == engine.getTimeline().getTotalElapsedMonths();
+                if (anom.isPubliclyObservable() && appearanceYear <= targetYear
+                        && (currentSelectedMonth ? anom.getRemainingQuantity() > 0.0 : false)) {
                     anomalyMarkers.add(new MapAnomalyDto(
                             anom.getAnomalyId(),
                             anom.getPosX(),

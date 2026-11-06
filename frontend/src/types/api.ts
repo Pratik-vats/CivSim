@@ -140,14 +140,20 @@ export interface SearchResultDto {
 }
 
 export interface SimulationStatusDto {
-  state: 'STOPPED' | 'RUNNING' | 'PAUSED' | 'ERROR';
-  simulationSpeed: string;
-  ticksPerSecond: number;
-  totalElapsedTicks: number;
-  pendingCommands: number;
-  pendingQueries: number;
-  workerAlive: boolean;
-  activeWorldId: string;
+  worldId: string;
+  lifecycleState: 'INITIALIZING' | 'STOPPED' | 'RUNNING' | 'PAUSED' | 'HUMAN_EXTINCT' | 'ERROR';
+  speed: string;
+  tickIntervalMillis: number;
+  currentYear: number;
+  currentMonth: number;
+  totalMonths: number;
+  livingHumans: number;
+  livingMonsters: number;
+  activeLairs: number;
+  pendingCommandQueueSize: number;
+  pendingQueryQueueSize: number;
+  activeSseSubscribers: number;
+  usedHeapMb: number;
 }
 
 export interface CommandStatusDto {
@@ -482,40 +488,6 @@ export interface WorldActivityEventDto {
   dataAvailability: string;
 }
 
-export interface AnnualChronicleDto {
-  year: number;
-  totalMonths: number;
-  era: string;
-  openingPopulation: number;
-  closingPopulation: number;
-  births: number;
-  deaths: number;
-  marriages: number;
-  migrations: number;
-  settlementsCount: number;
-  activeClansCount: number;
-  battlesCount: number;
-  tidesCount: number;
-  anomaliesCount: number;
-  awakeningSummary: string;
-  combatSummary: string;
-  organizationSummary: string;
-  monsterEcologySummary: string;
-  equipmentSummary: string;
-  bloodFeudSummary: string;
-  villagePopulations: Record<string, number>;
-}
-
-export interface CivilizationMilestoneDto {
-  year: number;
-  month: number;
-  title: string;
-  description: string;
-  category: string;
-  era: string;
-  importance: string;
-}
-
 export interface BattleRoundRecordDto {
   roundNumber: number;
   actionSequence: number;
@@ -740,109 +712,7 @@ export interface FeudDetailDto {
   involvedFamilyIds: string[];
 }
 
-// ==========================================
-// Phase 3.5: Historical Time Travel & Branching
-// ==========================================
-
-export type HistoricalDataResolution =
-  | 'FULL_HISTORICAL_STATE'
-  | 'PARTIAL_HISTORICAL_STATE'
-  | 'AGGREGATED_HISTORICAL_DATA'
-  | 'EVENT_HISTORY_ONLY'
-  | 'CURRENT_STATE_ONLY'
-  | 'UNAVAILABLE';
-
-export interface HistoricalSnapshotMetadataDto {
-  worldId: string;
-  year: number;
-  month: number;
-  snapshotType: string;
-  resolution: HistoricalDataResolution;
-  isRestorable: boolean;
-  isForkCapable: boolean;
-  availableFields: string[];
-  missingFields: string[];
-  disclaimer: string;
-}
-
-export interface HistoricalTimelineMilestone {
-  year: number;
-  month: number;
-  title: string;
-  category: string;
-}
-
-export interface HistoricalTimelineDto {
-  worldId: string;
-  currentLiveYear: number;
-  currentLiveMonth: number;
-  minHistoricalYear: number;
-  maxHistoricalYear: number;
-  recordedYears: number[];
-  significantMilestones: HistoricalTimelineMilestone[];
-  checkpointYears: number[];
-}
-
-export interface HistoricalMapSnapshotDto {
-  worldId: string;
-  year: number;
-  month: number;
-  resolution: HistoricalDataResolution;
-  isHistorical: boolean;
-  settlements: MapSettlementDto[];
-  lairs: MapLairDto[];
-  anomalies: MapAnomalyDto[];
-  expeditions: MapExpeditionDto[];
-  metadata: HistoricalSnapshotMetadataDto;
-}
-
-export interface HistoricalWorldSummaryDto {
-  worldId: string;
-  year: number;
-  month: number;
-  resolution: HistoricalDataResolution;
-  isHistorical: boolean;
-  humanPopulation: number;
-  settlementCount: number;
-  activeOrganizationCount: number;
-  livingMonsterCount: number;
-  activeMonsterLairCount: number;
-  awakenedPopulation: number;
-  totalFoodStockpile: number;
-  totalWoodStockpile: number;
-  totalOreStockpile: number;
-  totalToolsStockpile: number;
-  currentEra: string;
-  availableFields: string[];
-  missingFields: string[];
-  metadata: HistoricalSnapshotMetadataDto;
-}
-
-export interface HistoricalDateComparisonDto {
-  worldId: string;
-  year1: number;
-  month1: number;
-  year2: number;
-  month2: number;
-  population1: number;
-  population2: number;
-  populationDelta: number;
-  populationGrowthPercent: number;
-  settlements1: number;
-  settlements2: number;
-  settlementsDelta: number;
-  clans1: number;
-  clans2: number;
-  clansDelta: number;
-  totalBattles1: number;
-  totalBattles2: number;
-  battlesInPeriod: number;
-  resolutionYear1: HistoricalDataResolution;
-  resolutionYear2: HistoricalDataResolution;
-  year1Available: boolean;
-  year2Available: boolean;
-}
-
+// Settlement history shown in the active settlement inspector.
 export interface SettlementHistoryPointDto {
   year: number;
   population: number;
@@ -865,73 +735,20 @@ export interface SettlementHistoryDto {
   history: SettlementHistoryPointDto[];
 }
 
-export interface WorldSaveDetailDto {
-  saveId: string;
-  worldName: string;
-  worldId: string;
-  year: number;
-  month: number;
-  livingPopulation: number;
-  settlementCount: number;
-  schemaVersion: number;
-  saveTimestamp: number;
-  checksum: string;
-  isValidChecksum: boolean;
-  isBranch: boolean;
-  parentCheckpointId?: string | null;
-  branchName?: string | null;
-  branchCreationTimestamp?: number | null;
-  rngPolicy?: string | null;
-  fileSizeBytes: number;
-}
-
 export interface NewWorldRequest {
   seed?: number;
   worldName?: string;
   fantasyMode?: boolean;
-  awakeningYearThreshold?: number;
-  extinctionRecoveryPolicy?: string;
+  awakeningThreshold?: number;
+  extinctionPolicy?: string;
 }
 
-export interface CreateBranchRequest {
-  sourceCheckpointId: string;
-  branchName: string;
-  rngPolicy?: 'CONTINUE_CHECKPOINT_RNG' | 'FORK_RANDOM_STREAM';
-}
-
-export interface BranchSummaryDto {
-  branchId: string;
+export interface NewWorldResponse {
   worldId: string;
-  branchName: string;
-  parentCheckpointId: string;
-  divergenceYear: number;
-  divergenceMonth: number;
-  creationTimestamp: number;
-  rngPolicy: string;
-  currentYear: number;
-  currentMonth: number;
-  currentPopulation: number;
-  currentSettlementCount: number;
-}
-
-export interface BranchTimeSeriesPointDto {
-  year: number;
-  month: number;
-  humanPopulation: number;
-  settlementCount: number;
-  cumulativeBattles: number;
-}
-
-export interface BranchComparisonDto {
-  world1Id: string;
-  world1Name: string;
-  world2Id: string;
-  world2Name: string;
-  divergenceYear: number;
-  divergenceMonth: number;
-  commonAncestorCheckpointId: string;
-  world1Series: BranchTimeSeriesPointDto[];
-  world2Series: BranchTimeSeriesPointDto[];
+  worldName: string;
+  seed: number;
+  awakeningStartYear: number;
+  status: string;
 }
 
 // Stage 3.6 Overlays, Heatmaps & Replay Types

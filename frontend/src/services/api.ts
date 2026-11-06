@@ -21,8 +21,6 @@ import {
   PersonComparisonDto,
   OrganizationComparisonDto,
   WorldActivityEventDto,
-  AnnualChronicleDto,
-  CivilizationMilestoneDto,
   BattleSummaryDto,
   BattleDetailDto,
   BattleRoundsDto,
@@ -34,16 +32,9 @@ import {
   AnomalyContestDto,
   FeudSummaryDto,
   FeudDetailDto,
-  HistoricalTimelineDto,
-  HistoricalWorldSummaryDto,
-  HistoricalMapSnapshotDto,
-  HistoricalDateComparisonDto,
   SettlementHistoryDto,
-  WorldSaveDetailDto,
   NewWorldRequest,
-  CreateBranchRequest,
-  BranchSummaryDto,
-  BranchComparisonDto,
+  NewWorldResponse,
   WorldOverlaysDto,
 } from '../types/api';
 
@@ -92,22 +83,56 @@ export async function fetchSimulationStatus(): Promise<SimulationStatusDto> {
 
 export async function pauseSimulation(): Promise<CommandStatusDto> {
   const res = await fetch(`${API_BASE}/simulation/pause`, { method: 'POST' });
-  return res.json();
+  if (!res.ok) throw new Error(`Pause request failed: ${res.statusText}`);
+  const command: CommandStatusDto = await res.json();
+  return waitForLifecycleState('PAUSED', command);
 }
 
 export async function resumeSimulation(): Promise<CommandStatusDto> {
   const res = await fetch(`${API_BASE}/simulation/resume`, { method: 'POST' });
-  return res.json();
+  if (!res.ok) throw new Error(`Resume request failed: ${res.statusText}`);
+  const command: CommandStatusDto = await res.json();
+  return waitForLifecycleState('RUNNING', command);
+}
+
+async function waitForLifecycleState(target: 'PAUSED' | 'RUNNING', command: CommandStatusDto): Promise<CommandStatusDto> {
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    const status = await fetchSimulationStatus();
+    if (status.lifecycleState === target) return command;
+    if (status.lifecycleState === 'ERROR' || status.lifecycleState === 'STOPPED') {
+      throw new Error(`Simulation is ${status.lifecycleState.toLowerCase()}; cannot ${target === 'PAUSED' ? 'pause' : 'resume'}.`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`Timed out waiting for the simulation to ${target === 'PAUSED' ? 'pause' : 'resume'}.`);
+}
+
+async function waitForCommand(command: CommandStatusDto): Promise<CommandStatusDto> {
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    const res = await fetch(`${API_BASE}/simulation/commands/${encodeURIComponent(command.commandId)}`);
+    if (!res.ok) throw new Error(`Could not confirm simulation command: ${res.statusText}`);
+    const latest: CommandStatusDto = await res.json();
+    if (latest.status === 'COMPLETED') return latest;
+    if (latest.status === 'REJECTED' || latest.status === 'FAILED') {
+      throw new Error(latest.message || `Simulation command ${latest.status.toLowerCase()}.`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error('Timed out waiting for the simulation command to complete.');
 }
 
 export async function stepMonth(): Promise<CommandStatusDto> {
   const res = await fetch(`${API_BASE}/simulation/step/month`, { method: 'POST' });
-  return res.json();
+  if (!res.ok) throw new Error(`Step month failed: ${res.statusText}`);
+  return waitForCommand(await res.json());
 }
 
 export async function stepYear(): Promise<CommandStatusDto> {
   const res = await fetch(`${API_BASE}/simulation/step/year`, { method: 'POST' });
-  return res.json();
+  if (!res.ok) throw new Error(`Step year failed: ${res.statusText}`);
+  return waitForCommand(await res.json());
 }
 
 export async function setSimulationSpeed(speed: string): Promise<CommandStatusDto> {
@@ -116,7 +141,8 @@ export async function setSimulationSpeed(speed: string): Promise<CommandStatusDt
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ speed }),
   });
-  return res.json();
+  if (!res.ok) throw new Error(`Changing simulation speed failed: ${res.statusText}`);
+  return waitForCommand(await res.json());
 }
 
 // =========================================================================
@@ -304,7 +330,10 @@ export async function fetchWorldActivity(params: ActivityFilterParams = {}): Pro
   if (params.severity) query.set('severity', params.severity);
   if (params.search) query.set('search', params.search);
   if (params.entityId) query.set('entityId', params.entityId);
-  if (params.year !== undefined) query.set('year', String(params.year));
+  if (params.year !== undefined) {
+    query.set('yearMin', String(params.year));
+    query.set('yearMax', String(params.year));
+  }
 
   const res = await fetch(`${API_BASE}/activity?${query.toString()}`);
   if (!res.ok) throw new Error(`Failed to fetch world activity: ${res.statusText}`);
@@ -314,24 +343,6 @@ export async function fetchWorldActivity(params: ActivityFilterParams = {}): Pro
 export async function fetchActivityEvent(id: string): Promise<WorldActivityEventDto> {
   const res = await fetch(`${API_BASE}/activity/${encodeURIComponent(id)}`);
   if (!res.ok) throw new Error(`Failed to fetch activity event #${id}: ${res.statusText}`);
-  return res.json();
-}
-
-export async function fetchChronicleYears(): Promise<number[]> {
-  const res = await fetch(`${API_BASE}/chronicle/years`);
-  if (!res.ok) throw new Error(`Failed to fetch chronicle years: ${res.statusText}`);
-  return res.json();
-}
-
-export async function fetchChronicleAnnual(year: number): Promise<AnnualChronicleDto> {
-  const res = await fetch(`${API_BASE}/chronicle/${year}`);
-  if (!res.ok) throw new Error(`Failed to fetch chronicle for year ${year}: ${res.statusText}`);
-  return res.json();
-}
-
-export async function fetchChronicleMilestones(): Promise<CivilizationMilestoneDto[]> {
-  const res = await fetch(`${API_BASE}/chronicle/milestones`);
-  if (!res.ok) throw new Error(`Failed to fetch chronicle milestones: ${res.statusText}`);
   return res.json();
 }
 
@@ -454,128 +465,16 @@ export async function fetchFeudDetail(id: string): Promise<FeudDetailDto> {
 }
 
 // ==========================================
-// Phase 3.5: Historical Time Travel & Persistence
+// Settlement history displayed in the live inspector.
 // ==========================================
-
-export async function fetchHistoricalTimeline(worldId?: string): Promise<HistoricalTimelineDto> {
-  const url = worldId ? `${API_BASE}/historical/timeline?worldId=${encodeURIComponent(worldId)}` : `${API_BASE}/historical/timeline`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch historical timeline: ${res.statusText}`);
-  return res.json();
-}
-
-export async function fetchHistoricalSummary(year: number, month = 0): Promise<HistoricalWorldSummaryDto> {
-  const res = await fetch(`${API_BASE}/historical/summary?year=${year}&month=${month}`);
-  if (!res.ok) throw new Error(`Failed to fetch historical summary: ${res.statusText}`);
-  return res.json();
-}
-
-export async function fetchHistoricalMap(year: number, month = 0): Promise<HistoricalMapSnapshotDto> {
-  const res = await fetch(`${API_BASE}/historical/map?year=${year}&month=${month}`);
-  if (!res.ok) throw new Error(`Failed to fetch historical map: ${res.statusText}`);
-  return res.json();
-}
 
 export async function fetchSettlementHistory(id: number): Promise<SettlementHistoryDto> {
   const res = await fetch(`${API_BASE}/historical/settlements/${id}/history`);
   if (!res.ok) throw new Error(`Failed to fetch settlement #${id} history: ${res.statusText}`);
   return res.json();
 }
-
-export async function fetchHistoricalPerson(id: string, year: number): Promise<PersonDetailDto> {
-  const res = await fetch(`${API_BASE}/historical/people/${encodeURIComponent(id)}?year=${year}`);
-  if (!res.ok) throw new Error(`Failed to fetch historical person #${id}: ${res.statusText}`);
-  return res.json();
-}
-
-export async function fetchHistoricalDateComparison(
-  year1: number,
-  year2: number,
-  month1 = 0,
-  month2 = 0
-): Promise<HistoricalDateComparisonDto> {
-  const res = await fetch(
-    `${API_BASE}/historical/compare/dates?year1=${year1}&year2=${year2}&month1=${month1}&month2=${month2}`
-  );
-  if (!res.ok) throw new Error(`Failed to fetch date comparison: ${res.statusText}`);
-  return res.json();
-}
-
-export async function fetchSaves(): Promise<WorldSaveDetailDto[]> {
-  const res = await fetch(`${API_BASE}/saves`);
-  if (!res.ok) throw new Error(`Failed to fetch saves: ${res.statusText}`);
-  return res.json();
-}
-
-export async function fetchSave(saveId: string): Promise<WorldSaveDetailDto> {
-  const res = await fetch(`${API_BASE}/saves/${encodeURIComponent(saveId)}`);
-  if (!res.ok) throw new Error(`Failed to fetch save #${saveId}: ${res.statusText}`);
-  return res.json();
-}
-
-export async function createSave(saveId?: string, worldName?: string): Promise<WorldSaveDetailDto> {
-  const params = new URLSearchParams();
-  if (saveId) params.set('saveId', saveId);
-  if (worldName) params.set('worldName', worldName);
-  const url = params.toString() ? `${API_BASE}/saves?${params.toString()}` : `${API_BASE}/saves`;
-  const res = await fetch(url, { method: 'POST' });
-  if (!res.ok) throw new Error(`Failed to create save: ${res.statusText}`);
-  return res.json();
-}
-
-export async function restoreSave(saveId: string): Promise<CommandStatusDto> {
-  const res = await fetch(`${API_BASE}/saves/${encodeURIComponent(saveId)}/restore`, { method: 'POST' });
-  if (!res.ok) throw new Error(`Failed to restore save #${saveId}: ${res.statusText}`);
-  return res.json();
-}
-
-export async function validateSave(saveId: string): Promise<{ saveId: string; valid: boolean; message: string; expectedChecksum?: string; calculatedChecksum?: string }> {
-  const res = await fetch(`${API_BASE}/saves/${encodeURIComponent(saveId)}/validate`);
-  if (!res.ok) throw new Error(`Failed to validate save #${saveId}: ${res.statusText}`);
-  return res.json();
-}
-
-export async function deleteSave(saveId: string): Promise<{ success: boolean; message: string }> {
-  const res = await fetch(`${API_BASE}/saves/${encodeURIComponent(saveId)}`, { method: 'DELETE' });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to delete save #${saveId}`);
-  }
-  return res.json();
-}
-
-export async function renameSave(saveId: string, newName: string): Promise<WorldSaveDetailDto> {
-  const res = await fetch(`${API_BASE}/saves/${encodeURIComponent(saveId)}/rename?newName=${encodeURIComponent(newName)}`, {
-    method: 'POST',
-  });
-  if (!res.ok) throw new Error(`Failed to rename save #${saveId}: ${res.statusText}`);
-  return res.json();
-}
-
-export async function fetchBranches(): Promise<BranchSummaryDto[]> {
-  const res = await fetch(`${API_BASE}/branches`);
-  if (!res.ok) throw new Error(`Failed to fetch branches: ${res.statusText}`);
-  return res.json();
-}
-
-export async function createBranch(req: CreateBranchRequest): Promise<BranchSummaryDto> {
-  const res = await fetch(`${API_BASE}/branches`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(req),
-  });
-  if (!res.ok) throw new Error(`Failed to create branch: ${res.statusText}`);
-  return res.json();
-}
-
-export async function compareBranches(world1Id: string, world2Id: string): Promise<BranchComparisonDto> {
-  const res = await fetch(`${API_BASE}/branches/compare?world1Id=${encodeURIComponent(world1Id)}&world2Id=${encodeURIComponent(world2Id)}`);
-  if (!res.ok) throw new Error(`Failed to compare branches: ${res.statusText}`);
-  return res.json();
-}
-
-export async function createNewWorld(req?: NewWorldRequest): Promise<CommandStatusDto> {
-  const res = await fetch(`${API_BASE}/worlds`, {
+export async function createNewWorld(req?: NewWorldRequest): Promise<NewWorldResponse> {
+  const res = await fetch(`${API_BASE}/worlds/new`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req || {}),
@@ -599,13 +498,5 @@ export async function fetchWorldOverlays(): Promise<WorldOverlaysDto> {
   if (!res.ok) throw new Error(`Failed to fetch world overlays: ${res.statusText}`);
   return res.json();
 }
-
-export async function fetchHistoricalOverlays(year: number, month = 0): Promise<WorldOverlaysDto> {
-  const res = await fetch(`${API_BASE}/historical/overlays?year=${year}&month=${month}`);
-  if (!res.ok) throw new Error(`Failed to fetch historical overlays: ${res.statusText}`);
-  return res.json();
-}
-
-
 
 

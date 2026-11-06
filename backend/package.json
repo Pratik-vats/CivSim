@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "CivSim Java Simulation Engine & Spring Boot Web Backend",
   "scripts": {
-    "start": "node -e \"const fs=require('fs'),cp=require('child_process');const j='C:/Program Files/Java/jdk-25.0.4.1/bin/java.exe';const bin=fs.existsSync(j)?'\\\"'+j+'\\\"':'java';cp.spawnSync(bin,['-cp','bin;resources;lib/*','civsim.web.CivSimWebApplication'],{stdio:'inherit',shell:true})\"",
-    "build": "node -e \"const fs=require('fs'),cp=require('child_process');const j='C:/Program Files/Java/jdk-25.0.4.1/bin/javac.exe';const bin=fs.existsSync(j)?'\\\"'+j+'\\\"':'javac';cp.spawnSync(bin,['-cp','lib/*','-d','bin','--release','21','-parameters','@compile_sources.txt'],{stdio:'inherit',shell:true})\"",
+    "start": "node start.js",
+    "build": "node build.js",
     "test": "node -e \"const fs=require('fs'),cp=require('child_process');const j='C:/Program Files/Java/jdk-25.0.4.1/bin/java.exe';const bin=fs.existsSync(j)?'\\\"'+j+'\\\"':'java';cp.spawnSync(bin,['-cp','bin;resources;lib/*','civsim.test.TestStage32InteractiveMap'],{stdio:'inherit',shell:true})\""
   }
 }

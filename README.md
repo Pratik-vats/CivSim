@@ -54,10 +54,9 @@ The simulation transitions from a **Mundane Era** focused on survival, agricultu
 - **Multi-Tiered Banking**: Metallic currency systems (`Iron`, `Silver`, `Gold`, `Platinum`) with settlement treasuries, loans, and civic investments.
 - **Tactical Combat & Monster Ecology**: Multi-round battle resolution, territorial monster lairs with expanding threat zones, and high-stakes MonsterTide invasion waves.
 
-### 4. Historical Time Travel & Alternate Timelines
-- **Historical Snapshots**: Automated interval checkpoints capturing complete world states across centuries.
-- **Timeline Branching**: Create alternate reality branches at historical dates to simulate "what-if" divergences under isolated random number generation.
-- **Comparative Analytics**: Side-by-side time series and demographic comparisons between historical timelines.
+### 4. Live Events & Historical Records
+- **Live Activity**: Browse simulation events as they occur.
+- **Settlement History**: Inspect a settlement's recorded population and resource trends without rewinding the active simulation.
 
 ---
 
@@ -99,7 +98,7 @@ CivSim uses a decoupled architecture designed for thread-safe execution, high pe
 
 - **Single-Writer Thread Safety**: All world mutations execute sequentially on an isolated simulation worker thread, preventing race conditions.
 - **Non-Blocking Read Snapshots**: Web controllers serve immutable snapshot models published after each simulation tick, ensuring zero lock contention.
-- **Atomic State Persistence**: Save games and checkpoints are written using two-phase atomic file swaps to eliminate file corruption.
+- **Internal State Persistence**: Persistence services remain available to engine recovery and internal historical records; user-facing save, restore, and branch management are not exposed.
 
 ---
 
@@ -194,7 +193,6 @@ The backend exposes a standardized REST API along with real-time SSE event strea
 ### Entities & Chronicles
 - `GET  /api/settlements/{id}` — In-depth profile, stockpiles, and defense metrics.
 - `GET  /api/people/{id}` — Individual biography, family lineage, traits, and combat stats.
-- `GET  /api/events/chronicle` — Paginated historical event log and milestones.
 
 ### Real-Time Streaming
 - `GET  /api/events/live` — Server-Sent Events stream for live tick updates and world notifications.

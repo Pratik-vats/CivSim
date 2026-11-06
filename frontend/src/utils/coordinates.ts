@@ -26,15 +26,20 @@ export interface CameraState {
 
 export const DEFAULT_WORLD_BOUNDS: WorldBounds = {
   minX: 0,
-  maxX: 120,
+  maxX: 1000,
   minY: 0,
-  maxY: 120,
-  width: 120,
-  height: 120,
+  maxY: 1000,
+  width: 1000,
+  height: 1000,
 };
 
+export const CIVILIZATION_BOUNDS: WorldBounds = { minX: 450, maxX: 550, minY: 450, maxY: 550, width: 100, height: 100 };
+// Java snapshots now use native Map 1 coordinates; this identity adapter prevents double projection.
+export function projectWorldToMap(wx: number, wy: number) { return { x: wx, y: wy }; }
+export function unprojectMapToWorld(x: number, y: number) { return { wx: x, wy: y }; }
+
 export const MIN_ZOOM = 0.5;
-export const MAX_ZOOM = 8.0;
+export const MAX_ZOOM = 20.0;
 
 /**
  * Calculates the uniform base scale to fit the world into the viewport.
@@ -62,16 +67,16 @@ export function worldToScreen(
   baseScale: number,
   bounds: WorldBounds = DEFAULT_WORLD_BOUNDS
 ): { sx: number; sy: number } {
-  const safeX = Number.isFinite(wx) ? wx : bounds.minX;
-  const safeY = Number.isFinite(wy) ? wy : bounds.minY;
+  const mapX = Number.isFinite(wx) ? wx : bounds.minX;
+  const mapY = Number.isFinite(wy) ? wy : bounds.minY;
   const safeScale = Number.isFinite(baseScale) ? baseScale : 1;
   const safeZoom = Number.isFinite(camera?.zoom) ? camera.zoom : 1;
   const safePanX = Number.isFinite(camera?.panX) ? camera.panX : 0;
   const safePanY = Number.isFinite(camera?.panY) ? camera.panY : 0;
 
   const effectiveScale = safeScale * safeZoom;
-  const sx = safePanX + (safeX - bounds.minX) * effectiveScale;
-  const sy = safePanY + (safeY - bounds.minY) * effectiveScale;
+  const sx = safePanX + (mapX - bounds.minX) * effectiveScale;
+  const sy = safePanY + (mapY - bounds.minY) * effectiveScale;
   return { sx, sy };
 }
 
@@ -94,9 +99,23 @@ export function screenToWorld(
   if (effectiveScale <= 0) return { wx: bounds.minX, wy: bounds.minY };
   const safeSx = Number.isFinite(sx) ? sx : safePanX;
   const safeSy = Number.isFinite(sy) ? sy : safePanY;
-  const wx = bounds.minX + (safeSx - safePanX) / effectiveScale;
-  const wy = bounds.minY + (safeSy - safePanY) / effectiveScale;
-  return { wx, wy };
+  return { wx: bounds.minX + (safeSx - safePanX) / effectiveScale, wy: bounds.minY + (safeSy - safePanY) / effectiveScale };
+}
+
+export function getCoverCamera(viewportWidth: number, viewportHeight: number, bounds: WorldBounds = DEFAULT_WORLD_BOUNDS): CameraState {
+  const fitScale = calculateBaseScale(viewportWidth, viewportHeight, bounds);
+  const coverScale = Math.max(viewportWidth / bounds.width, viewportHeight / bounds.height);
+  const zoom = fitScale > 0 ? coverScale / fitScale : 1;
+  return { panX: (viewportWidth - bounds.width * coverScale) / 2, panY: (viewportHeight - bounds.height * coverScale) / 2, zoom };
+}
+
+export function getRegionFitCamera(viewportWidth: number, viewportHeight: number, region: WorldBounds, fullBounds: WorldBounds = DEFAULT_WORLD_BOUNDS, padding = 40): CameraState {
+  const fullScale = calculateBaseScale(viewportWidth, viewportHeight, fullBounds, padding);
+  const regionScale = calculateBaseScale(viewportWidth, viewportHeight, region, padding);
+  const zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, regionScale / fullScale));
+  const centerX = ((region.minX + region.maxX) / 2 - fullBounds.minX) * fullScale;
+  const centerY = ((region.minY + region.maxY) / 2 - fullBounds.minY) * fullScale;
+  return { panX: viewportWidth / 2 - centerX * zoom, panY: viewportHeight / 2 - centerY * zoom, zoom };
 }
 
 /**

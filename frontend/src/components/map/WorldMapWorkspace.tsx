@@ -3,8 +3,11 @@ import { WorldMapSnapshot, WorldOverlaysDto } from '../../types/api';
 import {
   WorldBounds,
   DEFAULT_WORLD_BOUNDS,
+  CIVILIZATION_BOUNDS,
   calculateBaseScale,
   getFitCamera,
+  getCoverCamera,
+  getRegionFitCamera,
   zoomAroundPoint,
   screenToWorld,
   worldToScreen,
@@ -62,14 +65,8 @@ export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapsho
     return () => ro.disconnect();
   }, []);
 
-  const bounds: WorldBounds = {
-    minX: 0,
-    maxX: mapSnapshot.width || DEFAULT_WORLD_BOUNDS.maxX,
-    minY: 0,
-    maxY: mapSnapshot.height || DEFAULT_WORLD_BOUNDS.maxY,
-    width: mapSnapshot.width || DEFAULT_WORLD_BOUNDS.width,
-    height: mapSnapshot.height || DEFAULT_WORLD_BOUNDS.height,
-  };
+  // Snapshot width/height (120) includes padding; map cameras use the 1000px SVG artboard.
+  const bounds: WorldBounds = DEFAULT_WORLD_BOUNDS;
 
   const baseScale = calculateBaseScale(dimensions.width, dimensions.height, bounds);
 
@@ -77,7 +74,7 @@ export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapsho
   const initializedRef = useRef(false);
   useEffect(() => {
     if (!initializedRef.current && dimensions.width > 100 && dimensions.height > 100) {
-      setCamera(getFitCamera(dimensions.width, dimensions.height, bounds));
+      setCamera(getCoverCamera(dimensions.width, dimensions.height, bounds));
       initializedRef.current = true;
     }
   }, [dimensions, bounds, setCamera]);
@@ -105,6 +102,7 @@ export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapsho
   const handleMouseDown = (e: React.MouseEvent) => {
     // Only left click drags
     if (e.button !== 0) return;
+    if (e.target instanceof Element && e.target.closest('button, input, select, textarea, [data-map-ui="true"]')) return;
     isDraggingRef.current = true;
     dragStartRef.current = {
       x: e.clientX,
@@ -142,6 +140,7 @@ export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapsho
 
   // Cursor-centered Wheel Zoom
   const handleWheel = (e: React.WheelEvent) => {
+    if (e.target instanceof Element && e.target.closest('button, input, select, textarea, [data-map-ui="true"]')) return;
     e.preventDefault();
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -226,7 +225,7 @@ export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapsho
       } else if (e.key === '-' || e.key === '_') {
         setCamera((c) => zoomAroundPoint(dimensions.width / 2, dimensions.height / 2, 0.8, c));
       } else if (e.key === '0') {
-        setCamera(getFitCamera(dimensions.width, dimensions.height, bounds));
+        setCamera(getCoverCamera(dimensions.width, dimensions.height, bounds));
       }
     };
 
@@ -237,7 +236,7 @@ export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapsho
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full overflow-hidden bg-[#0a0d14] cursor-grab active:cursor-grabbing select-none"
+      className="relative w-full h-full overflow-hidden bg-[#658c91] cursor-grab active:cursor-grabbing select-none"
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -250,12 +249,20 @@ export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapsho
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      onClick={() => {
+      onClick={(e) => {
         // Clicking on canvas background deselects
-        selectEntity(null);
+        if (e.target === e.currentTarget) selectEntity(null);
       }}
     >
-      {/* 1. Canvas Layer (Terrain, Grid, Territories, Heatmaps) */}
+      {/* Static atlas geography, uniformly scaled to preserve its square aspect ratio. */}
+      <img
+        src="/mie_expanded_world_map.svg"
+        alt=""
+        draggable={false}
+        className="absolute pointer-events-none max-w-none"
+        style={{ left: camera.panX, top: camera.panY, width: bounds.width * baseScale * camera.zoom, height: bounds.height * baseScale * camera.zoom }}
+      />
+      {/* Dynamic canvas overlays */}
       <WorldCanvas
         mapSnapshot={mapSnapshot}
         overlays={overlays}
@@ -319,7 +326,8 @@ export const WorldMapWorkspace: React.FC<WorldMapWorkspaceProps> = ({ mapSnapsho
         onZoomIn={() => setCamera((c) => zoomAroundPoint(dimensions.width / 2, dimensions.height / 2, 1.25, c))}
         onZoomOut={() => setCamera((c) => zoomAroundPoint(dimensions.width / 2, dimensions.height / 2, 0.8, c))}
         onFitWorld={() => setCamera(getFitCamera(dimensions.width, dimensions.height, bounds))}
-        onResetView={() => setCamera({ panX: 0, panY: 0, zoom: 1.0 })}
+        onFocusCivilization={() => setCamera(getRegionFitCamera(dimensions.width, dimensions.height, CIVILIZATION_BOUNDS, bounds))}
+        onResetView={() => setCamera(getCoverCamera(dimensions.width, dimensions.height, bounds))}
         hasSelectedEntity={!!selectedEntity}
         onCenterSelected={() => {
           if (!selectedEntity) return;

@@ -4,6 +4,7 @@ import civsim.ProgressionConfig;
 import civsim.SimulationConfig;
 import civsim.model.*;
 import civsim.spatial.Biome;
+import civsim.spatial.WorldGeography;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,7 +22,7 @@ public class AnomalyExplorationSystem {
     public static final int MAX_ACTIVE_ANOMALIES = 5;
     public static final double MIN_DISTANCE_FROM_SETTLEMENT = 8.0;
     public static final double MIN_DISTANCE_BETWEEN_ANOMALIES = 15.0;
-    public static final int MAX_COORDINATE_RETRIES = 25;
+    public static final int MAX_COORDINATE_RETRIES = 400;
     public static final double DEFAULT_EXPEDITION_SPEED = 20.0;
     public static final double MONTHLY_FOOD_RATION_PER_PERSON = 1.2;
 
@@ -141,29 +142,14 @@ public class AnomalyExplorationSystem {
             }
 
             // Validated Coordinate Selection
-            double minX = 10.0, maxX = 90.0, minY = 10.0, maxY = 90.0;
-            if (villages != null && !villages.isEmpty()) {
-                double minVX = Double.MAX_VALUE, maxVX = Double.MIN_VALUE;
-                double minVY = Double.MAX_VALUE, maxVY = Double.MIN_VALUE;
-                for (Village v : villages) {
-                    if (v.getX() < minVX) minVX = v.getX();
-                    if (v.getX() > maxVX) maxVX = v.getX();
-                    if (v.getY() < minVY) minVY = v.getY();
-                    if (v.getY() > maxVY) maxVY = v.getY();
-                }
-                minX = Math.max(0.0, minVX - 25.0);
-                maxX = maxVX + 25.0;
-                minY = Math.max(0.0, minVY - 25.0);
-                maxY = maxVY + 25.0;
-            }
-
             boolean placed = false;
             double chosenX = 0, chosenY = 0;
             Biome chosenBiome = Biome.RIVER_VALLEY;
 
             for (int attempt = 0; attempt < MAX_COORDINATE_RETRIES; attempt++) {
-                double candX = minX + (random.nextDouble() * (maxX - minX));
-                double candY = minY + (random.nextDouble() * (maxY - minY));
+                double candX = random.nextDouble() * WorldGeography.WIDTH;
+                double candY = random.nextDouble() * WorldGeography.HEIGHT;
+                if (!WorldGeography.isAnomalyLocation(candX, candY)) continue;
 
                 // 1. Distance from all living settlements >= 8.0
                 boolean okSettlement = true;
@@ -190,18 +176,7 @@ public class AnomalyExplorationSystem {
                 placed = true;
                 chosenX = candX;
                 chosenY = candY;
-                if (villages != null && !villages.isEmpty()) {
-                    Village nearest = villages.get(0);
-                    double minDist = Double.MAX_VALUE;
-                    for (Village v : villages) {
-                        double d = Math.hypot(v.getX() - chosenX, v.getY() - chosenY);
-                        if (d < minDist) {
-                            minDist = d;
-                            nearest = v;
-                        }
-                    }
-                    chosenBiome = nearest.getBiome();
-                }
+                chosenBiome = Biome.determineBiomeAt(chosenX, chosenY);
                 break;
             }
 

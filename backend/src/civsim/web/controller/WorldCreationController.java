@@ -32,6 +32,10 @@ public class WorldCreationController {
                 ? req.worldName().trim() : "World-" + seed;
 
         SimulationConfig config = SimulationConfig.createDefaultWithSeed(seed);
+        if (req != null && req.awakeningThreshold() != null) {
+            int awakeningYear = Math.max(1, Math.min(200, req.awakeningThreshold()));
+            config = config.withAwakeningStartYear(awakeningYear);
+        }
         if (req != null && req.extinctionPolicy() != null) {
             try {
                 config = config.withExtinctionPolicy(ExtinctionPolicy.valueOf(req.extinctionPolicy()));
@@ -55,8 +59,8 @@ public class WorldCreationController {
             Map<String, Object> map = runner.submitQuery(engine -> Map.<String, Object>of(
                     "activeWorldId", runner.getWorldId(),
                     "seed", engine.getConfig().getRandomSeed(),
-                    "worldWidth", 120.0,
-                    "worldHeight", 120.0,
+                    "worldWidth", civsim.spatial.WorldGeography.WIDTH,
+                    "worldHeight", civsim.spatial.WorldGeography.HEIGHT,
                     "awakeningStartYear", engine.getConfig().getAwakeningStartYear(),
                     "extinctionPolicy", engine.getConfig().getExtinctionPolicy().name(),
                     "supportedExtinctionPolicies", List.of("STOP_ON_EXTINCTION", "CONTINUE_NONHUMAN_WORLD")

@@ -6,7 +6,6 @@ import civsim.runner.SnapshotBuilder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.concurrent.TimeUnit;
@@ -36,17 +35,15 @@ public class OverlayController {
         }
     }
 
-    @GetMapping("/historical/overlays")
-    public ResponseEntity<WorldOverlaysDto> getHistoricalOverlays(
-            @RequestParam int year,
-            @RequestParam(defaultValue = "0") int month) {
+    /** Retained for non-HTTP compatibility checks; historical overlays are no longer a web route. */
+    public ResponseEntity<WorldOverlaysDto> getHistoricalOverlays(int year, int month) {
         try {
-            return runner.submitQuery(engine -> {
-                String worldId = runner.getWorldId();
-                return ResponseEntity.ok(SnapshotBuilder.buildHistoricalOverlays(engine, year, month, worldId));
-            }).get(3, TimeUnit.SECONDS);
+            return runner.submitQuery(engine -> ResponseEntity.ok(
+                    SnapshotBuilder.buildHistoricalOverlays(engine, year, month, runner.getWorldId())
+            )).get(3, TimeUnit.SECONDS);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
     }
+
 }

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { WorldSummaryDto, SimulationStatusDto } from '../../types/api';
 import { useMapStore } from '../../store/useMapStore';
 import {
@@ -19,11 +20,7 @@ import {
   MapPin,
   Activity,
   ShieldAlert,
-  HardDrive,
-  GitBranch,
   Globe,
-  RotateCcw,
-  Clock,
   Users,
   Sparkles,
   Skull,
@@ -39,6 +36,7 @@ interface TopBarProps {
 }
 
 export const TopBar: React.FC<TopBarProps> = ({ summary, status, sseConnected, isAwakened }) => {
+  const queryClient = useQueryClient();
   const toggleLayers = useMapStore((s) => s.toggleLayers);
   const toggleFilters = useMapStore((s) => s.toggleFilters);
   const toggleLegend = useMapStore((s) => s.toggleLegend);
@@ -49,36 +47,41 @@ export const TopBar: React.FC<TopBarProps> = ({ summary, status, sseConnected, i
   const showMinimap = useMapStore((s) => s.showMinimap);
 
   // Phase 3.5 Store Selectors
-  const timeTravelMode = useMapStore((s) => s.timeTravelMode);
-  const historicalYear = useMapStore((s) => s.historicalYear);
-  const historicalMonth = useMapStore((s) => s.historicalMonth);
-  const setLiveMode = useMapStore((s) => s.setLiveMode);
-  const setSaveManagerOpen = useMapStore((s) => s.setSaveManagerOpen);
-  const setBranchManagerOpen = useMapStore((s) => s.setBranchManagerOpen);
   const setNewWorldModalOpen = useMapStore((s) => s.setNewWorldModalOpen);
+  const [controlPending, setControlPending] = useState(false);
+  const [controlError, setControlError] = useState<string | null>(null);
+  const isRunning = status?.lifecycleState === 'RUNNING';
+  const isPaused = status?.lifecycleState === 'PAUSED';
 
-  const isHistorical = timeTravelMode === 'HISTORICAL';
-
-  const isRunning = status?.state === 'RUNNING';
-
-  const handleTogglePlay = async () => {
-    if (isRunning) {
-      await pauseSimulation();
-    } else {
-      await resumeSimulation();
+  const runControl = async (action: () => Promise<unknown>) => {
+    if (controlPending) return;
+    setControlPending(true);
+    setControlError(null);
+    try {
+      await action();
+      await queryClient.invalidateQueries({ queryKey: ['simulation-status'] });
+    } catch (error) {
+      setControlError(error instanceof Error ? error.message : 'Simulation control request failed.');
+    } finally {
+      setControlPending(false);
     }
   };
 
+  const handleTogglePlay = async () => {
+    if (controlPending || (!isRunning && !isPaused)) return;
+    await runControl(() => isRunning ? pauseSimulation() : resumeSimulation());
+  };
+
   const handleStepMonth = async () => {
-    await stepMonth();
+    if (isPaused) await runControl(stepMonth);
   };
 
   const handleStepYear = async () => {
-    await stepYear();
+    if (isPaused) await runControl(stepYear);
   };
 
   const handleSpeedChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    await setSimulationSpeed(e.target.value);
+    await runControl(() => setSimulationSpeed(e.target.value));
   };
 
   const eraText = summary?.currentEra || (isAwakened ? 'Awakening Era' : 'Mundane Era');
@@ -129,15 +132,7 @@ export const TopBar: React.FC<TopBarProps> = ({ summary, status, sseConnected, i
         </span>
 
         {/* Season & Date Display */}
-        {isHistorical ? (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-950/70 border border-amber-600/60 font-mono text-amber-300 shadow-inner">
-            <Clock className="w-3.5 h-3.5 text-amber-400" />
-            <span className="font-bold">HISTORICAL Y{historicalYear ?? 0}</span>
-            <span className="text-amber-500">/</span>
-            <span>M{historicalMonth ?? 0}</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 px-2.5 py-1 rounded bg-slate-900/90 border border-slate-800 font-mono text-slate-200 shadow-inner">
+        <div className="flex items-center gap-2 px-2.5 py-1 rounded bg-slate-900/90 border border-slate-800 font-mono text-slate-200 shadow-inner">
             <span className="text-[12px]" title={season.name}>
               {season.symbol}
             </span>
@@ -148,17 +143,16 @@ export const TopBar: React.FC<TopBarProps> = ({ summary, status, sseConnected, i
             <span className="text-slate-300">
               Month {summary?.month ?? 1} <span className={`text-[10px] font-normal ${season.color}`}>({season.name})</span>
             </span>
-          </div>
-        )}
+        </div>
 
         {/* Status Pill */}
         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono border border-slate-800 bg-slate-900">
           <span
             className={`w-1.5 h-1.5 rounded-full ${
-              isRunning ? 'bg-emerald-400' : status?.state === 'PAUSED' ? 'bg-amber-400' : 'bg-slate-500'
+              isRunning ? 'bg-emerald-400' : isPaused ? 'bg-amber-400' : 'bg-slate-500'
             }`}
           />
-          <span className="text-slate-300">{status?.state ?? 'READY'}</span>
+          <span className="text-slate-300">{status?.lifecycleState ?? 'CONNECTING'}</span>
         </div>
       </div>
 
@@ -198,33 +192,24 @@ export const TopBar: React.FC<TopBarProps> = ({ summary, status, sseConnected, i
       {/* 3. Right: Playback Controls & Toolbars */}
       <div className="flex items-center gap-2">
         {/* Historical Return Button */}
-        {isHistorical && (
-          <button
-            onClick={setLiveMode}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white font-semibold text-xs shadow transition"
-            title="Return to authoritative live simulation"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Return to Live</span>
-          </button>
-        )}
-
         {/* Playback Button Group */}
         <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-0.5">
           <button
             onClick={handleTogglePlay}
+            disabled={controlPending || (!isRunning && !isPaused)}
             className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 transition ${
               isRunning ? 'bg-amber-600 hover:bg-amber-500 text-white' : 'bg-emerald-600 hover:bg-emerald-500 text-white'
             }`}
-            title={isRunning ? 'Pause Simulation' : 'Resume Simulation'}
+            title={isRunning ? 'Pause Simulation' : isPaused ? 'Resume Simulation' : `Simulation ${status?.lifecycleState ?? 'status unavailable'}`}
           >
             {isRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-            <span>{isRunning ? 'Pause' : 'Play'}</span>
+            <span>{controlPending ? 'Waiting…' : isRunning ? 'Pause' : isPaused ? 'Resume' : 'Unavailable'}</span>
           </button>
 
           <button
             onClick={handleStepMonth}
-            className="p-1.5 hover:bg-slate-800 text-slate-300 rounded transition"
+            disabled={!isPaused || controlPending}
+            className="p-1.5 hover:bg-slate-800 text-slate-300 rounded transition disabled:opacity-40"
             title="Step 1 Month"
           >
             <SkipForward className="w-3.5 h-3.5" />
@@ -232,7 +217,8 @@ export const TopBar: React.FC<TopBarProps> = ({ summary, status, sseConnected, i
 
           <button
             onClick={handleStepYear}
-            className="p-1.5 hover:bg-slate-800 text-slate-300 rounded transition"
+            disabled={!isPaused || controlPending}
+            className="p-1.5 hover:bg-slate-800 text-slate-300 rounded transition disabled:opacity-40"
             title="Step 1 Year (12 Months)"
           >
             <FastForward className="w-3.5 h-3.5" />
@@ -242,6 +228,7 @@ export const TopBar: React.FC<TopBarProps> = ({ summary, status, sseConnected, i
         {/* Speed Selector */}
         <select
           onChange={handleSpeedChange}
+          disabled={controlPending}
           defaultValue="NORMAL"
           className="bg-slate-900 border border-slate-800 text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-cyan-500 font-mono"
         >
@@ -252,26 +239,7 @@ export const TopBar: React.FC<TopBarProps> = ({ summary, status, sseConnected, i
           <option value="MAXIMUM">10.0x</option>
         </select>
 
-        {/* Persistence & Timeline Action Buttons */}
         <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-0.5 gap-0.5">
-          <button
-            onClick={() => setSaveManagerOpen(true)}
-            className="flex items-center gap-1 px-2 py-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition"
-            title="Open Save Checkpoint Manager"
-          >
-            <HardDrive className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="hidden xl:inline text-[11px] font-medium">Saves</span>
-          </button>
-
-          <button
-            onClick={() => setBranchManagerOpen(true)}
-            className="flex items-center gap-1 px-2 py-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition"
-            title="Open Branch & Alternate Timeline Explorer"
-          >
-            <GitBranch className="w-3.5 h-3.5 text-purple-400" />
-            <span className="hidden xl:inline text-[11px] font-medium">Branches</span>
-          </button>
-
           <button
             onClick={() => setNewWorldModalOpen(true)}
             className="flex items-center gap-1 px-2 py-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition"
@@ -281,6 +249,8 @@ export const TopBar: React.FC<TopBarProps> = ({ summary, status, sseConnected, i
             <span className="hidden xl:inline text-[11px] font-medium">New World</span>
           </button>
         </div>
+
+        {controlError && <span role="alert" className="max-w-48 text-[10px] text-rose-300" title={controlError}>{controlError}</span>}
 
         {/* View Toggles */}
         <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-0.5 gap-0.5">

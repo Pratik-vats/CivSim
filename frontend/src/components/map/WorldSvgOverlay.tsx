@@ -49,6 +49,11 @@ export const WorldSvgOverlay: React.FC<WorldSvgOverlayProps> = ({
   const dynamicOverlays = useMapStore((s) => s.dynamicOverlays);
   const hoveredEntity = useMapStore((s) => s.hoveredEntity);
 
+  const inViewport = (x: number, y: number, padding = 56) => {
+    const { sx, sy } = worldToScreen(x, y, camera, baseScale, bounds);
+    return sx >= -padding && sx <= width + padding && sy >= -padding && sy <= height + padding;
+  };
+
   // Time ticker for animation phase offset
   const [animTick, setAnimTick] = useState<number>(0);
 
@@ -66,25 +71,25 @@ export const WorldSvgOverlay: React.FC<WorldSvgOverlayProps> = ({
     if (filters.settlementBiome !== 'ALL' && s.biome !== filters.settlementBiome) return false;
     if (filters.settlementTier !== 'ALL' && s.tier !== filters.settlementTier) return false;
     if (s.population < filters.minPopulation) return false;
-    return true;
+    return inViewport(s.x, s.y);
   });
 
   // Filter lairs
   const visibleLairs = mapSnapshot.lairs.filter((l) => {
     if (!layers.lairs) return false;
     if (filters.lairThreat !== 'ALL' && l.threatRank !== filters.lairThreat) return false;
-    return true;
+    return inViewport(l.x, l.y, 72);
   });
 
   // Filter anomalies (backend already ensures observable)
   const visibleAnomalies = mapSnapshot.anomalies.filter((a) => {
     if (!layers.anomalies) return false;
     if (filters.anomalyGrade !== 'ALL' && a.resourceGrade !== filters.anomalyGrade) return false;
-    return true;
+    return inViewport(a.x, a.y);
   });
 
   // Expeditions
-  const visibleExpeditions = layers.expeditions ? mapSnapshot.expeditions : [];
+  const visibleExpeditions = layers.expeditions ? mapSnapshot.expeditions.filter((e) => inViewport(e.currentX, e.currentY)) : [];
 
   return (
     <svg

@@ -2,6 +2,7 @@ package civsim;
 
 import civsim.model.*;
 import civsim.spatial.Biome;
+import civsim.spatial.WorldGeography;
 import civsim.systems.*;
 
 import java.util.ArrayList;
@@ -145,8 +146,11 @@ public class SimulationEngine {
 
         int vIdx = 0;
         for (String villageName : config.getVillageNames()) {
-            double vx = (vIdx < initialCoords.length) ? initialCoords[vIdx][0] : 15.0 + ((vIdx * 23.0) % 70.0);
-            double vy = (vIdx < initialCoords.length) ? initialCoords[vIdx][1] : 15.0 + ((vIdx * 31.0) % 70.0);
+            double originalX = (vIdx < initialCoords.length) ? initialCoords[vIdx][0] : 15.0 + ((vIdx * 23.0) % 70.0);
+            double originalY = (vIdx < initialCoords.length) ? initialCoords[vIdx][1] : 15.0 + ((vIdx * 31.0) % 70.0);
+            WorldGeography.Point2D mapPoint = WorldGeography.legacyToMap(originalX, originalY);
+            double vx = mapPoint.x();
+            double vy = mapPoint.y();
             Biome vBiome = (vIdx < initialBiomes.length) ? initialBiomes[vIdx] : Biome.determineBiomeAt(vx, vy);
             vIdx++;
 

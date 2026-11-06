@@ -8,6 +8,7 @@ import civsim.model.Person;
 import civsim.model.SettlementTier;
 import civsim.model.Village;
 import civsim.spatial.Biome;
+import civsim.spatial.WorldGeography;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -46,8 +47,6 @@ public class ColonizationSystem {
             BiConsumer<String, Boolean> eventRecorder) {
 
         if (!config.isAllowColonization()) return;
-        if (villages.size() >= 6) return; // Limit maximum active settlements in world to 6 for stability
-
         List<Village> eligibleSponsors = new ArrayList<>();
         for (Village v : villages) {
             boolean hasTier = (v.getTier() == SettlementTier.TOWN || v.getTier() == SettlementTier.CITY
@@ -96,11 +95,11 @@ public class ColonizationSystem {
 
         // Determine 2D coordinates for the new colony:
         // Pioneers scout outward, preferentially exploring along the trade corridor towards allies/trade partners
-        double bestX = 50.0;
-        double bestY = 50.0;
+        double bestX = Double.NaN;
+        double bestY = Double.NaN;
         double bestScore = -1.0;
 
-        for (int attempt = 0; attempt < 16; attempt++) {
+        for (int attempt = 0; attempt < 64; attempt++) {
             double angle = random.nextDouble() * 2 * Math.PI;
             if (!villages.isEmpty() && random.nextBoolean()) {
                 Village partner = villages.get(random.nextInt(villages.size()));
@@ -109,9 +108,11 @@ public class ColonizationSystem {
                     angle = directAngle + (random.nextDouble() - 0.5) * 0.65;
                 }
             }
-            double dist = 18.0 + random.nextDouble() * 20.0;
-            double candX = Math.max(8.0, Math.min(92.0, sponsor.getX() + dist * Math.cos(angle)));
-            double candY = Math.max(8.0, Math.min(92.0, sponsor.getY() + dist * Math.sin(angle)));
+            // Mature civilizations can send farther expeditions, allowing gradual frontier settlement.
+            double dist = 18.0 + random.nextDouble() * 20.0 + Math.min(70.0, currentYear * 0.20);
+            double candX = sponsor.getX() + dist * Math.cos(angle);
+            double candY = sponsor.getY() + dist * Math.sin(angle);
+            if (!WorldGeography.isSettlementLocation(candX, candY)) continue;
 
             double minDist = Double.MAX_VALUE;
             for (Village v : villages) {
@@ -127,6 +128,8 @@ public class ColonizationSystem {
                 bestY = candY;
             }
         }
+
+        if (!Double.isFinite(bestX) || !Double.isFinite(bestY)) return;
 
         Biome colonyBiome = Biome.determineBiomeAt(bestX, bestY);
         Village newHamlet = new Village(colonyId, newHamletName, config.getInitialFoodPrice(), config.getBankInterestRate(), bestX, bestY, colonyBiome);
